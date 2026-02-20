@@ -1,7 +1,7 @@
 # DebAItor
 **AI-Assisted Discussion & Debate Evaluation Platform**
 
-### 🚀 [Live Demo: https://debailtor.onrender.com](https://debailtor.onrender.com)
+### 🚀 [Live Demo: [https://debailtor.onrender.com](https://enigma-kohl-five.vercel.app)]
 
 ## Problem Statement
 Evaluating discussions and debates is often subjective, biased, and inconsistent. In educational and professional settings, feedback typically focuses on "winning" or volume rather than logical structure, clarity, and relevance.
@@ -10,6 +10,11 @@ Evaluating discussions and debates is often subjective, biased, and inconsistent
 DebAItor is a real-time, AI-powered platform that objectively evaluates debate arguments based on *how* they are presented. It removes human bias by focusing strictly on logical reasoning, clarity, and relevance, ensuring fair and constructive feedback for every participant rather than just declaring a "winner" based on opinion.
 
 ## Key Features
+*   **Four Unique Discussion Modes**:
+    *   ⚔️ **Debate**: Competitive scoring with rankings and winner badges.
+    *   📚 **Classroom**: Focus on learning, skill meters, and constructive feedback.
+    *   🎙️ **Panel Discussion**: Emphasizes balanced participation and moderator insights.
+    *   💼 **Meeting**: Executive summaries, actionable insights, and key takeaways.
 *   **Live Room Creation**: Instant session setup with unique room codes.
 *   **Seamless Joining**: Participants join instantly via QR code on any device.
 *   **Structured AI Evaluation**: Arguments are scored on:
@@ -18,7 +23,7 @@ DebAItor is a real-time, AI-powered platform that objectively evaluates debate a
     *   **Logic**: Coherence and reasoning structure.
     *   **Emotional Bias**: Objectivity vs. emotional appeal.
 *   **Automated Reporting**: Generates detailed performance reports and transcripts.
-*   **Persistent Sessions**: Robust data handling ensures debates survive refreshes.
+*   **Persistent Sessions & Easy Reset**: Robust Firestore data handling ensures debates survive refreshes, and hosts can easily launch a new room post-debate.
 
 ## How It Works
 1.  **Create Room**: Host starts a session and shares the QR code.
