@@ -1089,6 +1089,9 @@
             <button class="btn btn-secondary" onclick="downloadReport('json')">
               📊 Export Data (JSON)
             </button>
+            <button class="btn" style="background: var(--bg-color); color: var(--text-color); border: 1px solid #ddd;" onclick="startNewRoom()">
+              ➕ Start New Room
+            </button>
           </div>
         </div>
 
@@ -1500,6 +1503,14 @@
       fetchAnalytics();
       fetchInsights();
 
+      const buttonGroupHTML = `
+        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="downloadReport('text')">📄 Download Report (TXT)</button>
+          <button class="btn btn-secondary" onclick="downloadReport('json')">📊 Export Data (JSON)</button>
+          <button class="btn" style="background: var(--bg-color); color: var(--text-color); border: 1px solid #ddd;" onclick="startNewRoom()">➕ Start New Room</button>
+        </div>
+      `;
+
       // Adapt header for classroom mode
       const headerEl = document.getElementById('results-header');
       if (mode === 'classroom') {
@@ -1508,6 +1519,7 @@
             <h2>📚 Learning Review</h2>
             <p>Here\'s how each participant did. Focus on growth and feedback.</p>
           </div>
+          ${buttonGroupHTML}
         `;
       } else if (mode === 'panel') {
         headerEl.innerHTML = `
@@ -1515,6 +1527,7 @@
             <h2>🎙️ Panel Discussion Review</h2>
             <p>Balanced participation and discussion health overview.</p>
           </div>
+          ${buttonGroupHTML}
         `;
       } else if (mode === 'meeting') {
         headerEl.innerHTML = `
@@ -1522,6 +1535,7 @@
             <h2>💼 Meeting Debrief</h2>
             <p>Executive summary and actionable insights from the discussion.</p>
           </div>
+          ${buttonGroupHTML}
         `;
       } else {
         headerEl.innerHTML = `
@@ -1531,10 +1545,7 @@
             <h5>📊 Weight Profile: <span id="legend-mode-name">${modeLabel || 'Debate'}</span></h5>
             <div id="legend-weights"></div>
           </div>
-          <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
-            <button class="btn btn-primary" onclick="downloadReport('text')">📄 Download Report (TXT)</button>
-            <button class="btn btn-secondary" onclick="downloadReport('json')">📊 Export Data (JSON)</button>
-          </div>
+          ${buttonGroupHTML}
         `;
         showWeightLegend(modeWeights, modeLabel);
       }
@@ -2180,6 +2191,15 @@
       } catch (error) {
         console.error('Download error:', error);
         alert('Failed to download report. Please try again.');
+      }
+    }
+
+    // Start a fresh session
+    function startNewRoom() {
+      if(confirm('Are you sure you want to leave this room and start a new one?')) {
+        sessionStorage.removeItem('roomCode');
+        sessionStorage.removeItem('hostId');
+        window.location.href = '/host.html';
       }
     }
 
