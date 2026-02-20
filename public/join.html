@@ -408,6 +408,82 @@
     }
     .results-back:hover { background: #000; }
 
+    /* ── Mode-specific themes ── */
+    .debate-wrapper {
+      --mode-accent: #2563eb;
+      --mode-accent-glow: rgba(37, 99, 235, 0.15);
+      --mode-bg: #111827;
+      --mode-surface: #1f2937;
+      --mode-border: #374151;
+    }
+    .debate-wrapper.mode-classroom {
+      --mode-accent: #059669;
+      --mode-accent-glow: rgba(5, 150, 105, 0.15);
+      --mode-bg: #0f1f17;
+      --mode-surface: #132a1e;
+      --mode-border: #1e4030;
+    }
+    .debate-wrapper.mode-panel {
+      --mode-accent: #7c3aed;
+      --mode-accent-glow: rgba(124, 58, 237, 0.15);
+      --mode-bg: #1a1225;
+      --mode-surface: #231a30;
+      --mode-border: #362d45;
+    }
+    .debate-wrapper.mode-meeting {
+      --mode-accent: #d97706;
+      --mode-accent-glow: rgba(217, 119, 6, 0.15);
+      --mode-bg: #1a1508;
+      --mode-surface: #2a2010;
+      --mode-border: #45371e;
+    }
+
+    /* Apply mode colors */
+    .debate-wrapper {
+      background: var(--mode-bg);
+    }
+    .debate-topbar {
+      border-bottom-color: var(--mode-border);
+    }
+    .debate-topbar .status-pill.active {
+      background: var(--mode-accent-glow);
+      color: var(--mode-accent);
+    }
+    .mic-btn {
+      background: var(--mode-surface);
+      border-color: var(--mode-border);
+    }
+    .mic-btn:not(:disabled):hover {
+      border-color: var(--mode-accent);
+    }
+    .mic-btn.recording {
+      background: var(--mode-accent);
+      border-color: var(--mode-accent);
+    }
+    .feedback-bar {
+      background: var(--mode-surface);
+      border-color: var(--mode-border);
+    }
+
+    /* Mode banner */
+    .mode-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      background: var(--mode-accent-glow);
+      border-bottom: 1px solid var(--mode-border);
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--mode-accent);
+    }
+    .mode-banner .mode-icon-lg {
+      font-size: 0.9rem;
+    }
+
     /* Responsive */
     @media (max-width: 480px) {
       .join-wrapper { padding: 1.25rem; }
@@ -442,10 +518,18 @@
     </div>
   </div>
 
-  <!-- ═══ ACTIVE DEBATE ═══ -->
+  <!-- ═══ ACTIVE SESSION (Mode-aware) ═══ -->
   <div id="debate-interface" class="hidden debate-wrapper">
+    <!-- Mode banner — visually changes per mode -->
+    <div class="mode-banner" id="mode-banner">
+      <span class="mode-icon-lg" id="mode-icon">⚔️</span>
+      <span id="mode-banner-text">DEBATE MODE</span>
+    </div>
+
     <div class="debate-topbar">
-      <span class="topic" id="topic-display">Topic</span>
+      <div>
+        <span class="topic" id="topic-display">Topic</span>
+      </div>
       <span class="status-pill" id="status-text">STANDBY</span>
     </div>
 
@@ -461,7 +545,7 @@
     </div>
 
     <div class="feedback-bar" id="feedback-area">
-      <div class="fb-label">AI Analysis</div>
+      <div class="fb-label" id="fb-label-text">AI Analysis</div>
       <div class="fb-score" id="latest-score">—</div>
       <div class="fb-insight" id="latest-insight">Scores will appear here after your turn.</div>
     </div>
@@ -495,6 +579,87 @@
     let audioChunks = [];
     let pollInterval;
     let lastScore = null;
+    let currentMode = 'debate';
+
+    // Mode-specific configuration
+    const MODE_CONFIG = {
+      debate: {
+        icon: '⚔️',
+        label: 'Debate Mode',
+        joinBtn: 'Enter Arena',
+        waitMsg: 'Wait for your turn to argue',
+        turnMsg: 'Present your argument',
+        recordMsg: 'Recording argument...',
+        fbLabel: 'AI Score',
+        fbWait: 'Your score will appear after your argument.',
+        resultsTitle: 'Debate Results',
+        resultsSub: 'Final rankings based on argument quality.',
+        topbarColor: '#2563eb'
+      },
+      classroom: {
+        icon: '📚',
+        label: 'Classroom Mode',
+        joinBtn: 'Join Classroom',
+        waitMsg: 'Listen and prepare your thoughts',
+        turnMsg: 'Share your understanding',
+        recordMsg: 'Recording response...',
+        fbLabel: 'Learning Feedback',
+        fbWait: 'Feedback on your understanding will appear here.',
+        resultsTitle: 'Learning Summary',
+        resultsSub: 'Individual feedback and skill assessment.',
+        topbarColor: '#059669'
+      },
+      panel: {
+        icon: '🎙️',
+        label: 'Panel Discussion',
+        joinBtn: 'Join Panel',
+        waitMsg: 'Waiting for your turn to contribute',
+        turnMsg: 'Share your perspective',
+        recordMsg: 'Recording contribution...',
+        fbLabel: 'Contribution Score',
+        fbWait: 'Your contribution analysis will appear here.',
+        resultsTitle: 'Panel Analysis',
+        resultsSub: 'Participation balance and contribution quality.',
+        topbarColor: '#7c3aed'
+      },
+      meeting: {
+        icon: '💼',
+        label: 'Meeting Mode',
+        joinBtn: 'Join Meeting',
+        waitMsg: 'Listening to current speaker',
+        turnMsg: 'Present your point',
+        recordMsg: 'Recording input...',
+        fbLabel: 'Input Analysis',
+        fbWait: 'Analysis of your contribution will appear here.',
+        resultsTitle: 'Meeting Summary',
+        resultsSub: 'Key takeaways and participation overview.',
+        topbarColor: '#d97706'
+      }
+    };
+
+    function applyModeUI(mode) {
+      currentMode = mode || 'debate';
+      const cfg = MODE_CONFIG[currentMode] || MODE_CONFIG.debate;
+      const wrapper = document.getElementById('debate-interface');
+
+      // Remove old mode classes, add new one
+      wrapper.classList.remove('mode-debate', 'mode-classroom', 'mode-panel', 'mode-meeting');
+      wrapper.classList.add(`mode-${currentMode}`);
+
+      // Update mode banner (the most visible differentiator)
+      document.getElementById('mode-icon').textContent = cfg.icon;
+      document.getElementById('mode-banner-text').textContent = cfg.label.toUpperCase();
+
+      // Feedback area
+      document.getElementById('fb-label-text').textContent = cfg.fbLabel;
+      document.getElementById('latest-insight').textContent = cfg.fbWait;
+
+      // Instruction text
+      document.getElementById('instruction').textContent = cfg.waitMsg;
+
+      // Store in session
+      sessionStorage.setItem('sessionMode', currentMode);
+    }
 
     // Show code input if no code in URL
     if (!roomCode) {
@@ -527,6 +692,9 @@
         document.getElementById('debate-interface').classList.remove('hidden');
         document.getElementById('debate-interface').style.display = 'flex';
         document.getElementById('topic-display').textContent = data.topic;
+        
+        // Apply mode-specific UI
+        applyModeUI(data.mode);
 
         await initAudio();
         pollInterval = setInterval(checkStatus, 2000);
@@ -560,6 +728,9 @@
             document.getElementById('debate-interface').classList.remove('hidden');
             document.getElementById('debate-interface').style.display = 'flex';
             document.getElementById('topic-display').textContent = data.topic;
+            
+            // Apply mode UI from server data or session
+            applyModeUI(data.mode || sessionStorage.getItem('sessionMode'));
 
             if (data.status === 'results' || data.status === 'evaluating') {
               showEndedScreen();
@@ -614,12 +785,13 @@
         const btn = document.getElementById('record-btn');
         const status = document.getElementById('status-text');
         const instruction = document.getElementById('instruction');
+        const cfg = MODE_CONFIG[currentMode] || MODE_CONFIG.debate;
 
         if (data.isMyTurn && !isRecording) {
           btn.disabled = false;
           status.textContent = 'YOUR TURN';
           status.classList.add('active');
-          instruction.textContent = 'Tap microphone to start';
+          instruction.textContent = cfg.turnMsg;
           btn.onclick = () => {
             if (!isRecording) startRecording();
             else stopRecording();
@@ -628,7 +800,7 @@
           btn.disabled = true;
           status.textContent = data.currentTurnName ? `${data.currentTurnName}'S TURN` : 'WAITING';
           status.classList.remove('active');
-          instruction.textContent = 'Wait for your turn';
+          instruction.textContent = cfg.waitMsg;
         }
       } catch (e) {
         // Network error — don't touch UI, just wait for next poll
@@ -647,6 +819,14 @@
         const res = await fetch(`/api/rooms/${roomCode}/results`);
         const data = await res.json();
         if (data.error) return;
+
+        // Apply mode from results
+        const mode = data.mode || currentMode;
+        const cfg = MODE_CONFIG[mode] || MODE_CONFIG.debate;
+
+        // Set mode-specific results header
+        document.querySelector('.results-head h1').textContent = cfg.resultsTitle;
+        document.querySelector('.results-head p').textContent = cfg.resultsSub;
 
         document.getElementById('results-topic').textContent = data.topic || 'Discussion';
         const resultsList = document.getElementById('results-list');
@@ -691,10 +871,10 @@
               <span class="p-card-score">${p.averageScore || '—'}</span>
             </div>
             <div class="p-metrics">
-              <div class="p-metric"><span class="m-label">Logic</span><span class="m-value">${scores.logic || 0}</span></div>
+              <div class="p-metric"><span class="m-label">${mode === 'meeting' ? 'Substance' : 'Logic'}</span><span class="m-value">${scores.logic || 0}</span></div>
               <div class="p-metric"><span class="m-label">Clarity</span><span class="m-value">${scores.clarity || 0}</span></div>
               <div class="p-metric"><span class="m-label">Relevance</span><span class="m-value">${scores.relevance || 0}</span></div>
-              <div class="p-metric"><span class="m-label">Bias</span><span class="m-value">${scores.emotionalBias || 0}</span></div>
+              <div class="p-metric"><span class="m-label">${mode === 'meeting' ? 'Focus' : 'Bias'}</span><span class="m-value">${scores.emotionalBias || 0}</span></div>
             </div>
             ${responsesHTML}
           `;
@@ -712,8 +892,9 @@
       isRecording = true;
       audioChunks = [];
       mediaRecorder.start();
+      const cfg = MODE_CONFIG[currentMode] || MODE_CONFIG.debate;
       document.getElementById('record-btn').classList.add('recording');
-      document.getElementById('instruction').textContent = 'Recording... Tap to stop';
+      document.getElementById('instruction').textContent = cfg.recordMsg + ' Tap to stop';
       timeLeft = 30;
       updateTimer();
       timerInterval = setInterval(() => {

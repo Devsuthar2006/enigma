@@ -983,6 +983,104 @@
       margin-bottom: 0.4rem;
       border-left: 2px solid #b0bec5;
     }
+    
+    /* ══ Mode-specific Dashboard Themes ══ */
+    .dashboard-grid {
+      --host-accent: #2563eb;
+      --host-accent-glow: rgba(37, 99, 235, 0.08);
+      --host-sidebar-bg: #f9fafb;
+      --host-sidebar-border: #e5e7eb;
+      --host-header-bg: transparent;
+    }
+    .dashboard-grid.mode-classroom {
+      --host-accent: #059669;
+      --host-accent-glow: rgba(5, 150, 105, 0.08);
+      --host-sidebar-bg: #f0fdf4;
+      --host-sidebar-border: #bbf7d0;
+      --host-header-bg: #f0fdf4;
+    }
+    .dashboard-grid.mode-panel {
+      --host-accent: #7c3aed;
+      --host-accent-glow: rgba(124, 58, 237, 0.08);
+      --host-sidebar-bg: #faf5ff;
+      --host-sidebar-border: #e9d5ff;
+      --host-header-bg: #faf5ff;
+    }
+    .dashboard-grid.mode-meeting {
+      --host-accent: #d97706;
+      --host-accent-glow: rgba(217, 119, 6, 0.08);
+      --host-sidebar-bg: #fffbeb;
+      --host-sidebar-border: #fde68a;
+      --host-header-bg: #fffbeb;
+    }
+    .dashboard-grid.mode-debate {
+      --host-accent: #2563eb;
+      --host-accent-glow: rgba(37, 99, 235, 0.08);
+      --host-sidebar-bg: #eff6ff;
+      --host-sidebar-border: #bfdbfe;
+      --host-header-bg: #eff6ff;
+    }
+
+    /* Apply mode colors to dashboard elements */
+    .dashboard-grid .sidebar {
+      background: var(--host-sidebar-bg);
+      border-right-color: var(--host-sidebar-border);
+    }
+    .dashboard-grid .room-header {
+      background: var(--host-header-bg);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--host-sidebar-border);
+    }
+    .dashboard-grid .state-badge {
+      border: 1px solid var(--host-sidebar-border);
+    }
+
+    /* Host mode banner */
+    .host-mode-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.5rem;
+      background: var(--host-accent-glow);
+      border: 1px solid var(--host-sidebar-border);
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--host-accent);
+    }
+    .host-mode-banner .hm-icon {
+      font-size: 1rem;
+    }
+    .host-mode-banner .hm-label {
+      flex: 1;
+    }
+    .host-mode-banner .hm-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--host-accent);
+      animation: pulse 2s infinite;
+    }
+
+    /* Mode-specific button accents */
+    .dashboard-grid .btn-accent,
+    .dashboard-grid .btn-primary {
+      background: var(--host-accent);
+    }
+    .dashboard-grid .btn-accent:hover,
+    .dashboard-grid .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+    
+    /* Mode-specific leaderboard highlight */
+    .dashboard-grid .leaderboard-row td:first-child {
+      color: var(--host-accent);
+    }
   </style>
 </head>
 <body>
@@ -1046,6 +1144,13 @@
 
     <!-- Main Content -->
     <main class="main-content">
+      <!-- Mode banner (shown after room creation) -->
+      <div class="host-mode-banner hidden" id="host-mode-banner">
+        <span class="hm-icon" id="hm-icon">⚔️</span>
+        <span class="hm-label" id="hm-label">DEBATE MODE</span>
+        <span class="hm-dot"></span>
+      </div>
+
       <header class="room-header hidden" id="room-header">
         <div>
           <h2 id="display-topic" style="margin: 0;">Topic Placeholder</h2>
@@ -1218,6 +1323,17 @@
         document.getElementById('room-code').textContent = roomCode;
         document.getElementById('mode-display').innerHTML = `${MODE_ICONS[data.mode] || '⚔️'} ${data.modeLabel}`;
         currentModeWeights = null; // will be fetched from server
+
+        // Apply mode-specific theme to entire dashboard
+        const grid = document.querySelector('.dashboard-grid');
+        grid.classList.remove('mode-debate', 'mode-classroom', 'mode-panel', 'mode-meeting');
+        grid.classList.add(`mode-${data.mode || 'debate'}`);
+
+        // Show mode banner
+        const modeBanner = document.getElementById('host-mode-banner');
+        modeBanner.classList.remove('hidden');
+        document.getElementById('hm-icon').textContent = MODE_ICONS[data.mode] || '⚔️';
+        document.getElementById('hm-label').textContent = `${data.modeLabel || 'Debate'} Mode`.toUpperCase();
 
         // Generate QR
         new QRCode(document.getElementById("qrcode"), {

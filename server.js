@@ -404,6 +404,7 @@ app.post('/api/rooms/:code/join', async (req, res) => {
     participantId, 
     name: name.trim(),
     topic: room.topic,
+    mode: room.mode || 'debate',
     roomCode 
   });
 });
@@ -780,7 +781,8 @@ app.get('/api/rooms/:code/turn-status', async (req, res) => {
     round: room.currentRound,
     isMyTurn,
     currentTurnName,
-    currentTurn: room.currentTurn
+    currentTurn: room.currentTurn,
+    mode: room.mode || 'debate'
   });
 });
 
