@@ -288,6 +288,7 @@ app.post('/api/rooms', async (req, res) => {
     participants: new Map(),
     currentTurn: null,
     turnOrder: [],
+    raisedHands: [],
     currentRound: 0,
     status: STATES.WAITING,
     locked: false,
@@ -338,7 +339,8 @@ app.get('/api/rooms/:code', async (req, res) => {
     currentTurn: room.currentTurn,
     currentTurnName: room.currentTurn ? room.participants.get(room.currentTurn)?.name : null,
     participants,
-    turnOrder: room.turnOrder
+    turnOrder: room.turnOrder,
+    raisedHands: room.raisedHands || []
   });
 });
 
@@ -562,7 +564,10 @@ app.post('/api/rooms/:code/next-turn', async (req, res) => {
     currentTurn = room.turnOrder[nextIndex];
   }
 
-  const updates = { currentRound, currentTurn };
+  let raisedHands = room.raisedHands || [];
+  raisedHands = raisedHands.filter(id => id !== currentTurn);
+
+  const updates = { currentRound, currentTurn, raisedHands };
   await updateRoomData(roomCode, updates);
   
   // Update memory
@@ -605,7 +610,10 @@ app.post('/api/rooms/:code/assign-turn', async (req, res) => {
   // (optional, but good for keeping rounds consistent)
   const currentRound = room.currentRound;
 
-  const updates = { currentTurn: participantId };
+  let raisedHands = room.raisedHands || [];
+  raisedHands = raisedHands.filter(id => id !== participantId);
+
+  const updates = { currentTurn: participantId, raisedHands };
   await updateRoomData(roomCode, updates);
   
   // Update memory
@@ -622,6 +630,48 @@ app.post('/api/rooms/:code/assign-turn', async (req, res) => {
     currentTurnName: currentName,
     round: currentRound
   });
+});
+
+/**
+ * PARTICIPANT: Raise hand
+ */
+app.post('/api/rooms/:code/raise-hand', async (req, res) => {
+  const roomCode = req.params.code.toUpperCase();
+  const { participantId } = req.body;
+  const room = await getRoom(roomCode);
+
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  if (room.status !== STATES.COLLECTING) return res.status(400).json({ error: 'Not collecting context' });
+
+  const raisedHands = room.raisedHands || [];
+  if (!raisedHands.includes(participantId)) {
+    raisedHands.push(participantId);
+    await updateRoomData(roomCode, { raisedHands });
+    if (memoryRooms.has(roomCode)) {
+      memoryRooms.get(roomCode).raisedHands = raisedHands;
+    }
+  }
+  
+  res.json({ success: true, raisedHands });
+});
+
+/**
+ * HOST: Lower hand manually (Optional manual clear)
+ */
+app.post('/api/rooms/:code/lower-hand', async (req, res) => {
+  const roomCode = req.params.code.toUpperCase();
+  const { participantId } = req.body;
+  const room = await getRoom(roomCode);
+
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  let raisedHands = room.raisedHands || [];
+  raisedHands = raisedHands.filter(id => id !== participantId);
+  
+  await updateRoomData(roomCode, { raisedHands });
+  if (memoryRooms.has(roomCode)) memoryRooms.get(roomCode).raisedHands = raisedHands;
+  
+  res.json({ success: true, raisedHands });
 });
 
 /**
@@ -1373,13 +1423,19 @@ Evaluation Criteria (score each from 1 to 10):
 
 Provide the summary STRICTLY IN ENGLISH, no matter what language the argument is in.
 
+Also evaluate the facts and vibe:
+- If the argument presents a verifiable claim, fact-check it and state if it is True, False, or Unverified. If no clear fact, say "Opinion/No explicit facts".
+- Generate a 1-sentence funny/brutal 'roast' or 'hype' about the argument's quality.
+
 Return ONLY a valid JSON object:
 {
   "logic": X,
   "clarity": X,
   "relevance": X,
   "emotionalBias": X,
-  "summary": "Brief one-line summary in English"
+  "summary": "Brief one-line summary in English",
+  "factCheck": "Fact-check description/result",
+  "roast": "1-sentence funny roast or hype"
 }`;
 
   const userPrompt = `Topic: "${topic}"\n\nArgument:\n"${transcript}"`;
@@ -1437,8 +1493,10 @@ function getMockEvaluation(mode = 'debate') {
   const relevance = Math.floor(Math.random() * 4) + 5;
   const emotionalBias = Math.floor(Math.random() * 5) + 2;
   const summary = MOCK_SUMMARIES[Math.floor(Math.random() * MOCK_SUMMARIES.length)];
+  const factCheck = "Opinion/No explicit facts";
+  const roast = "Nice try, but even my grandmother argues better than that.";
   const finalScore = calculateFinalScore({ logic, clarity, relevance, emotionalBias }, mode);
-  return { logic, clarity, relevance, emotionalBias, summary, finalScore };
+  return { logic, clarity, relevance, emotionalBias, summary, factCheck, roast, finalScore };
 }
 
 // Serve pages

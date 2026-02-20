@@ -1594,23 +1594,29 @@
         isLocked = data.locked;
         updateLockUI();
 
-        // Rebuild participant list
         const list = document.getElementById('participant-list');
         const newHTML = data.participants.map((p, i) => {
           const isTurn = data.currentTurn === p.id;
           const showRemove = currentState !== STATES.RESULTS;
+          const hasHandRaised = data.raisedHands && data.raisedHands.includes(p.id);
+          const avatarUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(p.name)}`;
+          
           return `
             <tr class="leaderboard-row" ${isTurn ? 'style="background-color: #f0f4ff;"' : ''}>
               <td style="color: #9ca3af;">#${i + 1}</td>
               <td style="font-weight: 500; ${isTurn ? 'color: var(--accent);' : ''}">
-                ${p.name} ${isTurn ? '●' : ''}
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <img src="${avatarUrl}" alt="Avatar" style="width: 32px; height: 32px; border-radius: 50%; background: #f3f4f6; border: 1px solid #e5e7eb;">
+                  <span>${p.name} ${isTurn ? '●' : ''}</span>
+                  ${hasHandRaised && !isTurn ? '<span title="Raised Hand" style="animation: bounce 1s infinite;">✋</span>' : ''}
+                </div>
               </td>
               <td>
                 <span class="args-count">💬 ${p.responses || 0}</span>
               </td>
               <td>
                 <span style="font-size: 0.78rem; color: ${isTurn ? 'var(--accent)' : '#6b7280'};">
-                  ${isTurn ? 'SPEAKING' : 'WAITING'}
+                  ${isTurn ? 'SPEAKING' : (hasHandRaised ? '<span style="color:#d97706; font-weight:bold;">WANTS TO SPEAK</span>' : 'WAITING')}
                 </span>
               </td>
               <td>
