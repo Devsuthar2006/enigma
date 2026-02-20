@@ -28,6 +28,10 @@
       "dest": "/public/join.html"
     },
     {
+      "src": "/login.html",
+      "dest": "/public/login.html"
+    },
+    {
       "src": "/styles.css",
       "dest": "/public/styles.css"
     },

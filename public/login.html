@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — DebAItor</title>
+  <meta name="description" content="Sign in to DebAItor to host and manage your discussion sessions.">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body {
+      background: #fff;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Left branding panel */
+    .login-brand {
+      flex: 0 0 420px;
+      background: #111827;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2.5rem;
+    }
+    .login-brand-logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .login-brand-logo span { color: var(--accent); }
+    .login-brand-content { max-width: 280px; }
+    .login-brand-content h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+    .login-brand-content p {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+    .login-brand-footer {
+      font-size: 0.7rem;
+      color: #4b5563;
+    }
+
+    /* Right form panel */
+    .login-form-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem;
+    }
+    .login-form-container {
+      width: 100%;
+      max-width: 360px;
+    }
+    .login-form-container .back-link {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-bottom: 2.5rem;
+      transition: color 0.15s;
+    }
+    .login-form-container .back-link:hover { color: #111827; }
+    .login-form-container h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: #111827;
+      margin-bottom: 0.4rem;
+    }
+    .login-form-container .subtitle {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-bottom: 2rem;
+    }
+
+    /* Google Sign-In button */
+    .btn-google {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: #fff;
+      color: #374151;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: var(--font-stack);
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.65rem;
+    }
+    .btn-google:hover {
+      background: #f9fafb;
+      border-color: #9ca3af;
+    }
+    .btn-google:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-google svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.5rem 0;
+    }
+    .login-divider::before,
+    .login-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #e5e7eb;
+    }
+    .login-divider span {
+      font-size: 0.72rem;
+      color: #9ca3af;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .btn-guest {
+      width: 100%;
+      padding: 0.75rem;
+      background: #111827;
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: var(--font-stack);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-guest:hover { background: #000; }
+
+    .login-footer-text {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: #9ca3af;
+      line-height: 1.6;
+    }
+
+    .form-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 0.6rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* User info (shown after sign-in) */
+    .user-info {
+      display: none;
+      text-align: center;
+      padding: 2rem 0;
+    }
+    .user-info.visible { display: block; }
+    .user-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid #e5e7eb;
+      margin: 0 auto 1rem;
+    }
+    .user-info h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.15rem;
+    }
+    .user-info p {
+      font-size: 0.8rem;
+      color: #6b7280;
+      margin-bottom: 1.5rem;
+    }
+    .btn-continue {
+      width: 100%;
+      padding: 0.75rem;
+      background: #111827;
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: var(--font-stack);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 0.5rem;
+    }
+    .btn-continue:hover { background: #000; }
+    .btn-signout {
+      width: 100%;
+      padding: 0.6rem;
+      background: #fff;
+      color: #6b7280;
+      font-size: 0.78rem;
+      font-weight: 500;
+      font-family: var(--font-stack);
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-signout:hover { background: #f9fafb; color: #111827; }
+
+    /* Loading spinner */
+    .loading-spinner {
+      display: none;
+      text-align: center;
+      padding: 3rem 0;
+    }
+    .loading-spinner.visible { display: block; }
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #e5e7eb;
+      border-top-color: #111827;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    .loading-spinner p {
+      font-size: 0.82rem;
+      color: #9ca3af;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .login-brand { display: none; }
+      body { justify-content: center; }
+      .login-form-panel { padding: 2rem 1.5rem; }
+    }
+    @media (max-width: 480px) {
+      .login-form-container h1 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Left branding panel -->
+  <aside class="login-brand">
+    <div class="login-brand-logo">DEBAITOR<span>.</span></div>
+    <div class="login-brand-content">
+      <h2>Better discussions start with better feedback.</h2>
+      <p>AI-powered evaluation for debates, classrooms, panels, and meetings. Objective scoring. Real-time insights. Zero bias.</p>
+    </div>
+    <div class="login-brand-footer">&copy; 2026 DebAItor</div>
+  </aside>
+
+  <!-- Right form panel -->
+  <main class="login-form-panel">
+    <div class="login-form-container">
+      <a href="index.html" class="back-link">← Back to home</a>
+
+      <!-- Loading state -->
+      <div class="loading-spinner" id="loading-state">
+        <div class="spinner"></div>
+        <p>Checking session...</p>
+      </div>
+
+      <!-- Sign-in form -->
+      <div id="signin-state">
+        <h1>Sign in</h1>
+        <p class="subtitle">Use your Google account to get started.</p>
+
+        <div class="form-error" id="error-message"></div>
+
+        <button class="btn-google" id="google-btn" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Continue with Google
+        </button>
+
+        <div class="login-divider"><span>or</span></div>
+
+        <button class="btn-guest" onclick="continueAsGuest()">Continue without account</button>
+
+        <p class="login-footer-text">
+          By signing in, you agree to our terms of service.<br>
+          Guest sessions don't save history across devices.
+        </p>
+      </div>
+
+      <!-- Signed-in state -->
+      <div class="user-info" id="user-state">
+        <img src="" alt="Profile" class="user-avatar" id="user-avatar">
+        <h3 id="user-name"></h3>
+        <p id="user-email"></p>
+        <button class="btn-continue" onclick="goToDashboard()">Go to Dashboard</button>
+        <button class="btn-signout" onclick="handleSignOut()">Sign out</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Firebase SDK (compat mode for simplicity in vanilla HTML) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAdKL2u5KA1ujc1Nv3AYQnC9iGXJ2a0IBA",
+      authDomain: "debailtor.firebaseapp.com",
+      projectId: "debailtor",
+      storageBucket: "debailtor.firebasestorage.app",
+      messagingSenderId: "147706259933",
+      appId: "1:147706259933:web:a52b3ee6fa7820c0ce6e34",
+      measurementId: "G-6Z54Z6LZ86"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // DOM elements
+    const loadingState = document.getElementById('loading-state');
+    const signinState = document.getElementById('signin-state');
+    const userState = document.getElementById('user-state');
+    const errorEl = document.getElementById('error-message');
+
+    // Show/hide states
+    function showState(state) {
+      loadingState.classList.toggle('visible', state === 'loading');
+      signinState.style.display = state === 'signin' ? 'block' : 'none';
+      userState.classList.toggle('visible', state === 'user');
+    }
+
+    // Start with loading
+    showState('loading');
+
+    // Listen for auth state changes
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        document.getElementById('user-avatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'U') + '&background=111827&color=fff&size=112';
+        document.getElementById('user-name').textContent = user.displayName || 'User';
+        document.getElementById('user-email').textContent = user.email;
+
+        // Save to sessionStorage for other pages
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userName', user.displayName || 'User');
+        sessionStorage.setItem('userEmail', user.email);
+        sessionStorage.setItem('userPhoto', user.photoURL || '');
+        sessionStorage.setItem('userUid', user.uid);
+
+        showState('user');
+      } else {
+        // Check guest
+        if (sessionStorage.getItem('isGuest') === 'true') {
+          window.location.href = '/host.html';
+          return;
+        }
+        showState('signin');
+      }
+    });
+
+    // Google Sign-In
+    async function signInWithGoogle() {
+      const btn = document.getElementById('google-btn');
+      btn.disabled = true;
+      errorEl.style.display = 'none';
+
+      try {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        await auth.signInWithPopup(provider);
+        // onAuthStateChanged will handle the rest
+      } catch (error) {
+        console.error('Sign-in error:', error);
+
+        let msg = 'Sign-in failed. Please try again.';
+        if (error.code === 'auth/popup-closed-by-user') {
+          msg = 'Sign-in cancelled.';
+        } else if (error.code === 'auth/popup-blocked') {
+          msg = 'Pop-up was blocked. Please allow pop-ups for this site.';
+        } else if (error.code === 'auth/network-request-failed') {
+          msg = 'Network error. Check your connection.';
+        }
+
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+      }
+    }
+
+    // Continue as guest
+    function continueAsGuest() {
+      sessionStorage.setItem('isGuest', 'true');
+      sessionStorage.setItem('userName', 'Guest');
+      window.location.href = '/host.html';
+    }
+
+    // Go to dashboard
+    function goToDashboard() {
+      window.location.href = '/host.html';
+    }
+
+    // Sign out
+    async function handleSignOut() {
+      try {
+        await auth.signOut();
+        sessionStorage.clear();
+        showState('signin');
+      } catch (error) {
+        console.error('Sign-out error:', error);
+      }
+    }
+  </script>
+</body>
+</html>

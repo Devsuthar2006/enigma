@@ -3,22 +3,436 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DebAItor</title>
+  <title>DebAItor — AI-Powered Discussion Intelligence</title>
+  <meta name="description" content="Structured discussion scoring powered by AI. Evaluate debates, classrooms, panels and meetings with objective, real-time analysis.">
   <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Landing Page Enterprise Styles ── */
+    .landing-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 2.5rem;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .landing-logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #111827;
+    }
+    .landing-logo span { color: var(--accent); }
+    .landing-nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    .landing-nav-links a {
+      font-size: 0.85rem;
+      color: #6b7280;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .landing-nav-links a:hover { color: #111827; }
+    .landing-nav-links .nav-cta {
+      background: #111827;
+      color: #fff;
+      padding: 0.5rem 1.15rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .landing-nav-links .nav-cta:hover { background: #000; color: #fff; }
+
+    /* Hero */
+    .landing-hero-section {
+      padding: 6rem 2.5rem 5rem;
+      text-align: center;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .landing-hero-section h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+      color: #111827;
+      margin-bottom: 1.25rem;
+    }
+    .landing-hero-section h1 .accent-word {
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 2px;
+    }
+    .landing-hero-section p {
+      font-size: 1.1rem;
+      color: #6b7280;
+      line-height: 1.6;
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hero-actions .btn-dark {
+      background: #111827;
+      color: #fff;
+      padding: 0.85rem 2rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid #111827;
+      transition: all 0.15s;
+      display: inline-block;
+    }
+    .hero-actions .btn-dark:hover { background: #000; }
+    .hero-actions .btn-outline {
+      background: #fff;
+      color: #374151;
+      padding: 0.85rem 2rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid #d1d5db;
+      transition: all 0.15s;
+      display: inline-block;
+    }
+    .hero-actions .btn-outline:hover { background: #f9fafb; border-color: #9ca3af; }
+
+    /* Divider */
+    .section-divider {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 0;
+    }
+
+    /* Features */
+    .features-section {
+      padding: 5rem 2.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .features-section .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+    .features-section .section-heading {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #111827;
+      text-align: center;
+      letter-spacing: -0.02em;
+      margin-bottom: 3rem;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+    }
+    .feature-item {
+      padding: 1.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      transition: border-color 0.15s;
+    }
+    .feature-item:hover { border-color: #d1d5db; }
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+    .feature-item h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.4rem;
+    }
+    .feature-item p {
+      font-size: 0.82rem;
+      color: #6b7280;
+      line-height: 1.55;
+    }
+
+    /* Modes */
+    .modes-section {
+      padding: 5rem 2.5rem;
+      background: #f9fafb;
+    }
+    .modes-inner {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .modes-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .mode-card {
+      padding: 1.75rem 1.25rem;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      text-align: center;
+      transition: border-color 0.15s;
+    }
+    .mode-card:hover { border-color: #111827; }
+    .mode-card .mode-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .mode-card h3 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.3rem;
+    }
+    .mode-card p {
+      font-size: 0.72rem;
+      color: #9ca3af;
+      line-height: 1.45;
+    }
+
+    /* How it works */
+    .how-section {
+      padding: 5rem 2.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .steps-list {
+      list-style: none;
+      counter-reset: steps;
+    }
+    .steps-list li {
+      counter-increment: steps;
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .steps-list li::before {
+      content: counter(steps);
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: #111827;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.1rem;
+    }
+    .step-content h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 0.2rem;
+    }
+    .step-content p {
+      font-size: 0.82rem;
+      color: #6b7280;
+    }
+
+    /* Footer */
+    .landing-footer {
+      padding: 2rem 2.5rem;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .landing-footer p {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .landing-footer a {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-decoration: none;
+    }
+    .landing-footer a:hover { color: #111827; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .landing-hero-section h1 { font-size: 2rem; }
+      .landing-hero-section { padding: 4rem 1.5rem 3rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .modes-grid { grid-template-columns: repeat(2, 1fr); }
+      .landing-nav { padding: 1rem 1.25rem; }
+      .landing-nav-links { gap: 1rem; }
+      .landing-nav-links a:not(.nav-cta) { display: none; }
+      .landing-footer { flex-direction: column; gap: 0.5rem; text-align: center; }
+    }
+    @media (max-width: 480px) {
+      .landing-hero-section h1 { font-size: 1.6rem; }
+      .modes-grid { grid-template-columns: 1fr; }
+      .hero-actions { flex-direction: column; }
+      .hero-actions a { width: 100%; text-align: center; }
+    }
+  </style>
 </head>
 <body>
-  <div class="landing-hero">
-    <h1 class="app-title">DEBAITOR<span style="color: var(--accent);">.</span></h1>
-    <p class="app-tagline">Autonomous Debate Judging Platform</p>
-    
-    <div class="action-buttons">
-      <a href="host.html" class="btn btn-primary">Start as Host</a>
-      <a href="join.html" class="btn btn-secondary">Join Debate</a>
+  <!-- Navigation -->
+  <nav class="landing-nav">
+    <div class="landing-logo">DEBAITOR<span>.</span></div>
+    <div class="landing-nav-links">
+      <a href="#features">Features</a>
+      <a href="#modes">Modes</a>
+      <a href="#how">How it works</a>
+      <a href="login.html" class="nav-cta">Sign in</a>
     </div>
+  </nav>
 
-    <div style="margin-top: 4rem; text-align: center; color: #888; font-size: 0.8rem;">
-      <p>TURN-BASED ENGINE v1.0</p>
+  <!-- Hero -->
+  <section class="landing-hero-section">
+    <h1>Structured discussion scoring, powered by <span class="accent-word">AI</span></h1>
+    <p>Evaluate debates, classrooms, panels and meetings with objective, real-time analysis. Remove bias. Focus on substance.</p>
+    <div class="hero-actions">
+      <a href="host.html" class="btn-dark">Host a session</a>
+      <a href="join.html" class="btn-outline">Join a room</a>
     </div>
-  </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Features -->
+  <section class="features-section" id="features">
+    <p class="section-label">Platform</p>
+    <h2 class="section-heading">Everything you need for structured evaluation</h2>
+    <div class="features-grid">
+      <div class="feature-item">
+        <div class="feature-icon">🎯</div>
+        <h3>Objective Scoring</h3>
+        <p>AI evaluates arguments on logic, clarity, relevance, and emotional bias — removing human subjectivity entirely.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">⚡</div>
+        <h3>Real-time Rooms</h3>
+        <p>Create live sessions with unique room codes. Participants join instantly via QR code on any device.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🎙️</div>
+        <h3>Voice-first Input</h3>
+        <p>Participants record audio arguments. Whisper transcribes, AI scores. No typing required.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <h3>Participation Analytics</h3>
+        <p>Track contribution balance, identify dominance patterns, and surface engagement gaps across your group.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🧠</div>
+        <h3>Moderator Insights</h3>
+        <p>Automated alerts for discussion health: dominance warnings, silence detection, and relevance drift.</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📄</div>
+        <h3>Exportable Reports</h3>
+        <p>Download comprehensive reports as TXT or JSON. Full transcripts, scores, and session analytics included.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- Discussion Modes -->
+  <section class="modes-section" id="modes">
+    <div class="modes-inner">
+      <p class="section-label" style="text-align:center; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#9ca3af; margin-bottom:0.75rem;">Discussion modes</p>
+      <h2 class="section-heading" style="text-align:center; font-size:1.6rem; margin-bottom:3rem;">One platform, four formats</h2>
+      <div class="modes-grid">
+        <div class="mode-card">
+          <div class="mode-icon">⚔️</div>
+          <h3>Debate</h3>
+          <p>Competitive scoring with rankings and winner badges</p>
+        </div>
+        <div class="mode-card">
+          <div class="mode-icon">📚</div>
+          <h3>Classroom</h3>
+          <p>Focus on learning with skill meters and constructive feedback</p>
+        </div>
+        <div class="mode-card">
+          <div class="mode-icon">🎙️</div>
+          <h3>Panel</h3>
+          <p>Balanced participation with moderator insights and health alerts</p>
+        </div>
+        <div class="mode-card">
+          <div class="mode-icon">💼</div>
+          <h3>Meeting</h3>
+          <p>Executive summaries, actionable insights, and key takeaways</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider">
+
+  <!-- How it works -->
+  <section class="how-section" id="how">
+    <p class="section-label">Process</p>
+    <h2 class="section-heading">How it works</h2>
+    <ol class="steps-list">
+      <li>
+        <div class="step-content">
+          <h4>Create a room</h4>
+          <p>Pick a topic, choose a discussion mode, and generate a unique room code.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <h4>Share the code</h4>
+          <p>Participants scan the QR code or enter the room code to join instantly on any device.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <h4>Record arguments</h4>
+          <p>Each participant records their audio argument during their turn. AI transcribes in real-time.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <h4>AI evaluates</h4>
+          <p>Every argument is scored on logic, clarity, relevance, and emotional bias using GPT-4.</p>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <h4>Review results</h4>
+          <p>View scores, analytics, insights, and download a full session report.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- Footer -->
+  <footer class="landing-footer">
+    <p>&copy; 2026 DebAItor. Built for structured feedback.</p>
+    <a href="https://github.com/Devsuthar2006/enigma" target="_blank">GitHub</a>
+  </footer>
 </body>
 </html>
