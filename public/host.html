@@ -2196,11 +2196,12 @@
 
     // Start a fresh session
     function startNewRoom() {
-      if(confirm('Are you sure you want to leave this room and start a new one?')) {
-        sessionStorage.removeItem('roomCode');
-        sessionStorage.removeItem('hostId');
-        window.location.href = '/host.html';
-      }
+      sessionStorage.removeItem('roomCode');
+      sessionStorage.removeItem('hostId');
+      
+      // Strip any query parameters and reload to the base host path
+      window.history.replaceState({}, document.title, window.location.pathname);
+      window.location.reload();
     }
 
     // ============ TAB SWITCHING ============
