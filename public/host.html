@@ -822,6 +822,155 @@
       font-weight: 700;
       color: #333;
     }
+    /* ── Meeting Mode ── */
+    .meeting-header {
+      background: #f5f5f5;
+      border-radius: 10px;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      border: 1px solid #e0e0e0;
+    }
+    .meeting-header h2 { color: #37474f; margin: 0 0 0.25rem 0; font-size: 1.3rem; }
+    .meeting-header p { color: #78909c; margin: 0; font-size: 0.85rem; }
+    .meeting-section {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border: 1px solid #eceff1;
+    }
+    .meeting-section-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #546e7a;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 1rem 0;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #eceff1;
+    }
+    .meeting-summary-text {
+      font-size: 0.9rem;
+      color: #37474f;
+      line-height: 1.7;
+      padding: 1rem;
+      background: #fafafa;
+      border-radius: 8px;
+      border-left: 3px solid #78909c;
+    }
+    .meeting-takeaway {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.85rem;
+      color: #37474f;
+      line-height: 1.5;
+    }
+    .meeting-takeaway-icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      background: #eceff1;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: #546e7a;
+      font-weight: 700;
+      margin-top: 0.15rem;
+    }
+    .meeting-metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .meeting-metric {
+      text-align: center;
+      padding: 1rem 0.5rem;
+      background: #fafafa;
+      border-radius: 8px;
+      border: 1px solid #eceff1;
+    }
+    .meeting-metric .mm-val {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #37474f;
+    }
+    .meeting-metric .mm-label {
+      font-size: 0.65rem;
+      color: #90a4ae;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-top: 0.2rem;
+    }
+    .meeting-action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.6rem 0;
+      font-size: 0.85rem;
+      color: #37474f;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .meeting-action-item:last-child { border-bottom: none; }
+    .meeting-action-bullet {
+      flex-shrink: 0;
+      margin-top: 0.2rem;
+    }
+    .meeting-participant-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem;
+      background: #fafafa;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      border: 1px solid #eceff1;
+    }
+    .meeting-participant-row:hover {
+      background: #f5f5f5;
+    }
+    .mp-name {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #37474f;
+    }
+    .mp-scores {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.7rem;
+      color: #90a4ae;
+    }
+    .mp-scores span {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+    }
+    .mp-scores .mp-val {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #37474f;
+    }
+    .mp-overall {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #546e7a;
+      background: #eceff1;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+    }
+    .meeting-response-block {
+      background: #fafafa;
+      border-radius: 6px;
+      padding: 0.6rem;
+      margin-bottom: 0.4rem;
+      border-left: 2px solid #b0bec5;
+    }
   </style>
 </head>
 <body>
@@ -1367,6 +1516,13 @@
             <p>Balanced participation and discussion health overview.</p>
           </div>
         `;
+      } else if (mode === 'meeting') {
+        headerEl.innerHTML = `
+          <div class="meeting-header">
+            <h2>💼 Meeting Debrief</h2>
+            <p>Executive summary and actionable insights from the discussion.</p>
+          </div>
+        `;
       } else {
         headerEl.innerHTML = `
           <h2 style="color: var(--accent);">🏆 RESULTS READY</h2>
@@ -1401,6 +1557,12 @@
 
       if (mode === 'panel') {
         renderPanelResults(results, metricsContainer);
+        list.closest('table').style.display = 'none';
+        return;
+      }
+
+      if (mode === 'meeting') {
+        renderMeetingResults(results, metricsContainer);
         list.closest('table').style.display = 'none';
         return;
       }
@@ -1811,6 +1973,179 @@
         scoresSection.appendChild(card);
       });
       container.appendChild(scoresSection);
+    }
+
+    // ── Meeting Mode Renderer ──
+    function renderMeetingResults(results, container) {
+      const activeResults = results.filter(p => p.averageScores);
+      const totalArgs = results.reduce((s, p) => s + (p.argumentsSubmitted || p.totalResponses || 0), 0);
+
+      // Compute group averages
+      let avgClarity = 0, avgRelevance = 0, avgLogic = 0, avgBias = 0;
+      if (activeResults.length > 0) {
+        avgClarity = activeResults.reduce((s, p) => s + (p.averageScores.clarity || 0), 0) / activeResults.length;
+        avgRelevance = activeResults.reduce((s, p) => s + (p.averageScores.relevance || 0), 0) / activeResults.length;
+        avgLogic = activeResults.reduce((s, p) => s + (p.averageScores.logic || 0), 0) / activeResults.length;
+        avgBias = activeResults.reduce((s, p) => s + (p.averageScores.emotionalBias || 0), 0) / activeResults.length;
+      }
+
+      // 1. Executive Summary
+      const allSummaries = results.filter(p => p.summary).map(p => p.summary);
+      const allFeedback = results.flatMap(p => (p.responses || []).map(r => r.scores?.summary || r.scores?.insight).filter(Boolean));
+
+      const summarySection = document.createElement('div');
+      summarySection.className = 'meeting-section';
+      let summaryText = '';
+      if (allSummaries.length > 0) {
+        summaryText = allSummaries.join(' ');
+      } else if (allFeedback.length > 0) {
+        summaryText = allFeedback.slice(0, 3).join(' \u2022 ');
+      } else {
+        summaryText = 'Discussion completed with ' + results.length + ' participants contributing ' + totalArgs + ' arguments across the session.';
+      }
+      summarySection.innerHTML = `
+        <div class="meeting-section-title">📝 Executive Summary</div>
+        <div class="meeting-summary-text">${summaryText}</div>
+      `;
+      container.appendChild(summarySection);
+
+      // 2. Key Takeaways
+      const takeaways = [];
+      if (avgRelevance >= 7) takeaways.push('Discussion stayed highly relevant to the agenda.');
+      else if (avgRelevance >= 5) takeaways.push('Discussion was mostly on-topic with some divergence.');
+      else if (avgRelevance > 0) takeaways.push('Significant off-topic drift detected. Consider tighter moderation.');
+
+      if (avgClarity >= 7) takeaways.push('Points were articulated clearly across the board.');
+      else if (avgClarity < 5 && avgClarity > 0) takeaways.push('Several contributions lacked clarity. Written follow-ups recommended.');
+
+      if (avgBias > 6) takeaways.push('Emotional tone was elevated. Data-driven discussion may improve outcomes.');
+      else if (avgBias <= 3 && avgBias > 0) takeaways.push('Discussion maintained professional objectivity throughout.');
+
+      if (results.length > 1) {
+        const scores = results.map(r => r.averageScore || 0).filter(s => s > 0);
+        if (scores.length > 1) {
+          const gap = Math.max(...scores) - Math.min(...scores);
+          if (gap <= 1.5) takeaways.push('Contribution quality was remarkably consistent across participants.');
+          else if (gap > 4) takeaways.push('Wide quality variance suggests some participants may need preparation support.');
+        }
+      }
+
+      const silentCount = results.filter(p => (p.argumentsSubmitted || p.totalResponses || 0) === 0).length;
+      if (silentCount > 0) takeaways.push(`${silentCount} participant${silentCount > 1 ? 's' : ''} did not contribute. Consider async input collection.`);
+
+      if (takeaways.length > 0) {
+        const takeawaySection = document.createElement('div');
+        takeawaySection.className = 'meeting-section';
+        takeawaySection.innerHTML = `
+          <div class="meeting-section-title">📌 Key Takeaways</div>
+          ${takeaways.map((t, i) => `
+            <div class="meeting-takeaway">
+              <div class="meeting-takeaway-icon">${i + 1}</div>
+              <span>${t}</span>
+            </div>
+          `).join('')}
+        `;
+        container.appendChild(takeawaySection);
+      }
+
+      // 3. Actionable Insights (discussion quality metrics)
+      if (activeResults.length > 0) {
+        const insightsSection = document.createElement('div');
+        insightsSection.className = 'meeting-section';
+
+        // Determine action items
+        const actions = [];
+        if (avgClarity < 6) actions.push({ icon: '📝', text: `Avg clarity is ${Math.round(avgClarity * 10) / 10}/10. Consider requesting written summaries from participants.` });
+        if (avgRelevance < 6) actions.push({ icon: '🎯', text: `Avg relevance is ${Math.round(avgRelevance * 10) / 10}/10. Tighter agenda structure may help keep discussion focused.` });
+        if (avgBias > 5) actions.push({ icon: '⚖️', text: `Avg emotional bias is ${Math.round(avgBias * 10) / 10}/10. Ground rules for evidence-based reasoning may improve outcomes.` });
+        if (avgLogic < 6) actions.push({ icon: '🧩', text: `Avg logic is ${Math.round(avgLogic * 10) / 10}/10. Structured argument frameworks could strengthen reasoning quality.` });
+        if (actions.length === 0) actions.push({ icon: '✅', text: 'No critical issues. Discussion quality meets professional standards.' });
+
+        insightsSection.innerHTML = `
+          <div class="meeting-section-title">💡 Actionable Insights</div>
+          <div class="meeting-metric-row">
+            <div class="meeting-metric">
+              <div class="mm-val">${Math.round(avgClarity * 10) / 10}</div>
+              <div class="mm-label">Avg Clarity</div>
+            </div>
+            <div class="meeting-metric">
+              <div class="mm-val">${Math.round(avgRelevance * 10) / 10}</div>
+              <div class="mm-label">Avg Relevance</div>
+            </div>
+            <div class="meeting-metric">
+              <div class="mm-val">${Math.round(avgLogic * 10) / 10}</div>
+              <div class="mm-label">Avg Logic</div>
+            </div>
+          </div>
+          ${actions.map(a => `
+            <div class="meeting-action-item">
+              <span class="meeting-action-bullet">${a.icon}</span>
+              <span>${a.text}</span>
+            </div>
+          `).join('')}
+        `;
+        container.appendChild(insightsSection);
+      }
+
+      // 4. Participant Summary (compact, no rankings)
+      const participantSection = document.createElement('div');
+      participantSection.className = 'meeting-section';
+      participantSection.innerHTML = '<div class="meeting-section-title">👥 Participant Summary</div>';
+
+      results.forEach(p => {
+        const scores = p.averageScores || {};
+        const row = document.createElement('div');
+        row.className = 'meeting-participant-row';
+
+        // Expandable detail
+        const detailId = 'meeting-detail-' + (p.name || '').replace(/\s/g, '-');
+        row.style.cursor = 'pointer';
+        row.onclick = function() {
+          const el = document.getElementById(detailId);
+          el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        };
+
+        row.innerHTML = `
+          <span class="mp-name">${p.name}</span>
+          <div class="mp-scores">
+            <span><span class="mp-val">${scores.clarity || 0}</span>Clarity</span>
+            <span><span class="mp-val">${scores.relevance || 0}</span>Relev.</span>
+            <span><span class="mp-val">${scores.logic || 0}</span>Logic</span>
+          </div>
+          <span class="mp-overall">${p.averageScore || '--'}</span>
+        `;
+        participantSection.appendChild(row);
+
+        // Collapsible detail
+        const detail = document.createElement('div');
+        detail.id = detailId;
+        detail.style.display = 'none';
+        detail.style.padding = '0.5rem 0 0.75rem 0';
+
+        let detailHTML = '';
+        if (p.responses && p.responses.length > 0) {
+          detailHTML = p.responses.map(r => `
+            <div class="meeting-response-block">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 0.2rem;">
+                <span style="font-weight: 600; font-size: 0.75rem; color: #546e7a;">Round ${r.round}</span>
+                <span style="font-size: 0.75rem; color: #90a4ae;">${r.scores.finalScore}/10</span>
+              </div>
+              <p style="color: #666; font-size: 0.78rem; margin: 0; font-style: italic;">${r.scores.summary || 'No feedback'}</p>
+              ${r.transcript ? `<p style="color: #b0bec5; font-size: 0.7rem; margin: 0.3rem 0 0 0;">"${r.transcript}"</p>` : ''}
+            </div>
+          `).join('');
+        }
+        if (p.summary) {
+          detailHTML += `<p style="color: #546e7a; font-size: 0.78rem; font-style: italic; margin: 0.5rem 0 0 0; padding: 0.4rem; background: #f5f5f5; border-radius: 4px;">${p.summary}</p>`;
+        }
+        if (!detailHTML) {
+          detailHTML = '<p style="color: #bbb; font-size: 0.78rem;">No detailed data available.</p>';
+        }
+        detail.innerHTML = detailHTML;
+        participantSection.appendChild(detail);
+      });
+
+      container.appendChild(participantSection);
     }
 
     // Download report function
