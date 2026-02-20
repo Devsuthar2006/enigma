@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: debaitor
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GROQ_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: FIREBASE_PROJECT_ID
+        sync: false  # Set manually in Render dashboard
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false  # Set manually in Render dashboard
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false  # Set manually in Render dashboard

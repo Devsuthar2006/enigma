@@ -1,0 +1,23 @@
+{
+  "name": "debaitor",
+  "version": "1.0.0",
+  "description": "Turn-based, room-based debate app with AI scoring",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "firebase-admin": "^13.6.1",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^4.20.0",
+    "qrcode": "^1.5.3",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

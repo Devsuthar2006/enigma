@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Dashboard - DebAItor</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #cc0000;
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .remove-btn:hover {
+      background: rgba(200, 0, 0, 0.1);
+    }
+    .lock-indicator {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .lock-indicator.locked {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .lock-indicator.unlocked {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    /* State Badge Styles */
+    .state-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .state-badge.waiting {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    .state-badge.collecting {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+    .state-badge.evaluating {
+      background: #f3e5f5;
+      color: #7b1fa2;
+    }
+    .state-badge.results {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .state-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .state-badge.results .state-dot {
+      animation: none;
+    }
+    
+    /* Participation Status Badges */
+    .status-active {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .status-silent {
+      background: #fff3e0;
+      color: #e65100;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .args-count {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    /* Metrics Display */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .metric-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #eee;
+    }
+    .metric-card.winner {
+      border-color: var(--accent);
+      box-shadow: 0 4px 20px rgba(108, 99, 255, 0.15);
+    }
+    .metric-card h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .metric-card .rank-badge {
+      background: var(--accent);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
+    .metric-card .winner-badge {
+      background: linear-gradient(135deg, #FFD700, #FFA500);
+      color: #000;
+      font-size: 0.65rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 700;
+      margin-left: auto;
+    }
+    .scores-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .score-item {
+      background: #f8f9fa;
+      padding: 0.75rem;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .score-item .label {
+      color: #888;
+      font-size: 0.7rem;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .score-item .value {
+      color: #333;
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .metric-bar {
+      height: 8px;
+      background: #eee;
+      border-radius: 4px;
+      margin: 0.5rem 0;
+      overflow: hidden;
+    }
+    .metric-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .metric-bar-fill.logic { background: linear-gradient(90deg, #ab47bc, #8e24aa); }
+    .metric-bar-fill.clarity { background: linear-gradient(90deg, #42a5f5, #1e88e5); }
+    .metric-bar-fill.relevance { background: linear-gradient(90deg, #66bb6a, #43a047); }
+    .metric-bar-fill.bias { background: linear-gradient(90deg, #ff7043, #e64a19); }
+    .metric-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+    .metric-score {
+      font-weight: 600;
+      color: #333;
+    }
+    .overall-score {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .summary-text {
+      font-size: 0.85rem;
+      color: #666;
+      font-style: italic;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: relative;
+        width: 100%;
+        padding: 1rem;
+      }
+      .main-content {
+        padding: 1rem;
+      }
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 600px) {
+      .leaderboard-table {
+        font-size: 0.8rem;
+      }
+      .leaderboard-table th,
+      .leaderboard-table td {
+        padding: 0.5rem 0.25rem;
+      }
+      .metric-card {
+        padding: 1rem;
+      }
+      .overall-score {
+        font-size: 1.5rem;
+      }
+      .scores-grid {
+        gap: 0.5rem;
+      }
+      .score-item {
+        padding: 0.5rem;
+      }
+      .score-item .value {
+        font-size: 1rem;
+      }
+      header h1 {
+        font-size: 1.25rem;
+      }
+      .state-badge {
+        font-size: 0.7rem;
+        padding: 0.4rem 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-grid">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div style="margin-bottom: 3rem;">
+        <h3>DEBAITOR<span style="color: var(--accent);">.</span></h3>
+      </div>
+      
+      <!-- Setup Phase -->
+      <div id="setup-panel">
+        <div style="margin-bottom: 2rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">TOPIC</label>
+          <input type="text" id="topic" placeholder="Values vs Facts...">
+        </div>
+        <button class="btn btn-primary" style="width: 100%;" onclick="createRoom()">Create Room</button>
+      </div>
+
+      <!-- Controls (Hidden initially) -->
+      <div id="control-panel" class="hidden">
+        <div style="margin-bottom: 2rem; background: white; padding: 1rem; border-radius: 8px;">
+          <div id="qrcode"></div>
+          <p style="text-align: center; margin-top: 0.5rem; font-size: 0.8rem; color: #444;">Scan to Join</p>
+        </div>
+        
+        <p id="participant-count" style="text-align: center; margin-bottom: 0.5rem; font-weight: 600;">0 participants</p>
+        <p id="lock-status" style="text-align: center; margin-bottom: 1rem;">
+          <span id="lock-badge" class="lock-indicator unlocked">OPEN</span>
+        </p>
+        
+        <div class="control-actions" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <!-- State-dependent buttons -->
+          <button id="lock-btn" class="btn btn-secondary" onclick="toggleLock()">🔒 Lock Room</button>
+          <button id="start-btn" class="btn btn-accent" onclick="startDebate()">Start Debate</button>
+          <button id="next-turn-btn" class="btn btn-primary hidden" onclick="nextTurn()">Next Turn</button>
+          <button id="end-btn" class="btn btn-secondary hidden" onclick="endDebate()">End Debate</button>
+        </div>
+        
+        <!-- Status Message -->
+        <p id="status-message" style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #666;"></p>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="room-header hidden" id="room-header">
+        <div>
+          <h2 id="display-topic" style="margin: 0;">Topic Placeholder</h2>
+          <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+            <span id="state-badge" class="state-badge waiting">
+              <span class="state-dot"></span>
+              <span id="state-text">WAITING</span>
+            </span>
+            <span style="color: #888;">Round <span id="round-display">1</span></span>
+          </div>
+        </div>
+        <div class="room-code-display" id="room-code">CODE</div>
+      </header>
+
+      <!-- Waiting State -->
+      <div id="waiting-state" class="text-center" style="margin-top: 5rem; color: #888;">
+        <p>Waiting for room creation...</p>
+      </div>
+
+      <!-- Leaderboard -->
+      <div id="leaderboard-container" class="hidden">
+        <table class="leaderboard-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Participant</th>
+              <th>Arguments</th>
+              <th>Status</th>
+              <th>Score</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="participant-list">
+            <!-- Rows injected here -->
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Results State -->
+      <div id="results-state" class="hidden">
+        <div style="text-align: center; margin: 2rem 0;">
+          <h2 style="color: var(--accent);">🏆 RESULTS READY</h2>
+          <p style="color: #666;">Final evaluation based on Logic, Clarity, Relevance, and Emotional Bias.</p>
+          <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="downloadReport('text')">
+              📄 Download Report (TXT)
+            </button>
+            <button class="btn btn-secondary" onclick="downloadReport('json')">
+              📊 Export Data (JSON)
+            </button>
+          </div>
+        </div>
+        <div id="metrics-container" class="metrics-grid">
+          <!-- Metric cards injected here -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Discussion States
+    const STATES = {
+      WAITING: 'waiting',
+      COLLECTING: 'collecting',
+      EVALUATING: 'evaluating',
+      RESULTS: 'results'
+    };
+    
+    const STATE_LABELS = {
+      waiting: 'Waiting for Participants',
+      collecting: 'Collecting Arguments',
+      evaluating: 'Evaluating Discussion',
+      results: 'Results Available'
+    };
+
+    let roomCode = null;
+    let hostId = null;
+    let pollInterval;
+    let currentState = STATES.WAITING;
+    let isLocked = false;
+
+    async function createRoom() {
+      const topic = document.getElementById('topic').value;
+      if (!topic) return alert('Please enter a topic');
+
+      try {
+        const res = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic })
+        });
+        const data = await res.json();
+        
+        roomCode = data.roomCode;
+        hostId = data.hostId;
+        
+        sessionStorage.setItem('hostId', hostId);
+        sessionStorage.setItem('roomCode', roomCode);
+        
+        // UI Updates
+        document.getElementById('setup-panel').classList.add('hidden');
+        document.getElementById('control-panel').classList.remove('hidden');
+        document.getElementById('room-header').classList.remove('hidden');
+        document.getElementById('waiting-state').classList.add('hidden');
+        document.getElementById('leaderboard-container').classList.remove('hidden');
+        
+        document.getElementById('display-topic').textContent = data.topic;
+        document.getElementById('room-code').textContent = roomCode;
+
+        // Generate QR
+        new QRCode(document.getElementById("qrcode"), {
+          text: `${window.location.origin}/join.html?code=${roomCode}`,
+          width: 200,
+          height: 200,
+          colorDark : "#000000",
+          colorLight : "#ffffff",
+          correctLevel : QRCode.CorrectLevel.H
+        });
+
+        updateState(STATES.WAITING);
+        startPolling();
+      } catch (e) {
+        console.error(e);
+        alert('Error creating room');
+      }
+    }
+
+    function updateState(newState) {
+      currentState = newState;
+      const badge = document.getElementById('state-badge');
+      const text = document.getElementById('state-text');
+      
+      // Remove old state classes
+      badge.className = 'state-badge ' + newState;
+      text.textContent = STATE_LABELS[newState] || newState.toUpperCase();
+      
+      // Update button visibility based on state
+      const startBtn = document.getElementById('start-btn');
+      const nextBtn = document.getElementById('next-turn-btn');
+      const endBtn = document.getElementById('end-btn');
+      const lockBtn = document.getElementById('lock-btn');
+      
+      // Reset all
+      startBtn.classList.add('hidden');
+      nextBtn.classList.add('hidden');
+      endBtn.classList.add('hidden');
+      lockBtn.classList.add('hidden');
+      
+      switch(newState) {
+        case STATES.WAITING:
+          startBtn.classList.remove('hidden');
+          lockBtn.classList.remove('hidden');
+          break;
+        case STATES.COLLECTING:
+          nextBtn.classList.remove('hidden');
+          endBtn.classList.remove('hidden');
+          break;
+        case STATES.EVALUATING:
+          // No actions during evaluation
+          document.getElementById('status-message').textContent = '⏳ Evaluating responses...';
+          break;
+        case STATES.RESULTS:
+          document.getElementById('results-state').classList.remove('hidden');
+          break;
+      }
+    }
+
+    async function toggleLock() {
+      if (currentState !== STATES.WAITING) return;
+      
+      const newLockState = !isLocked;
+      
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/lock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hostId, lock: newLockState })
+        });
+        const data = await res.json();
+        
+        if (data.error) {
+          document.getElementById('status-message').textContent = '⚠️ ' + data.error;
+          return;
+        }
+        
+        isLocked = data.locked;
+        updateLockUI();
+        document.getElementById('status-message').textContent = isLocked ? '🔒 Room locked' : '🔓 Room unlocked';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function updateLockUI() {
+      const badge = document.getElementById('lock-badge');
+      const btn = document.getElementById('lock-btn');
+      
+      if (isLocked) {
+        badge.textContent = 'LOCKED';
+        badge.className = 'lock-indicator locked';
+        btn.textContent = '🔓 Unlock Room';
+      } else {
+        badge.textContent = 'OPEN';
+        badge.className = 'lock-indicator unlocked';
+        btn.textContent = '🔒 Lock Room';
+      }
+    }
+
+    async function removeParticipant(participantId, name) {
+      if (currentState === STATES.RESULTS) return;
+      
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/remove-participant`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hostId, participantId })
+        });
+        const data = await res.json();
+        
+        if (data.error) {
+          document.getElementById('status-message').textContent = '⚠️ ' + data.error;
+          return;
+        }
+        
+        document.getElementById('status-message').textContent = `✓ Removed ${data.removed}`;
+        updateUI();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function startDebate() {
+      if (currentState !== STATES.WAITING) {
+        document.getElementById('status-message').textContent = '⚠️ Can only start in waiting state';
+        return;
+      }
+      
+      const res = await fetch(`/api/rooms/${roomCode}/start`, { method: 'POST' });
+      const data = await res.json();
+      
+      if (data.error) {
+        document.getElementById('status-message').textContent = '⚠️ ' + data.error;
+        document.getElementById('status-message').style.color = '#cc0000';
+        return;
+      }
+      
+      document.getElementById('status-message').textContent = '✓ Debate started!';
+      document.getElementById('status-message').style.color = 'var(--success)';
+      updateState(STATES.COLLECTING);
+      updateUI();
+    }
+
+    async function nextTurn() {
+      if (currentState !== STATES.COLLECTING) {
+        document.getElementById('status-message').textContent = '⚠️ Debate not active';
+        return;
+      }
+      
+      const res = await fetch(`/api/rooms/${roomCode}/next-turn`, { method: 'POST' });
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById('status-message').textContent = '⚠️ ' + data.error;
+        return;
+      }
+      document.getElementById('status-message').textContent = `Now: ${data.currentTurnName}'s turn`;
+      updateUI();
+    }
+
+    async function endDebate() {
+      if (currentState !== STATES.COLLECTING) {
+        document.getElementById('status-message').textContent = '⚠️ No active debate to end';
+        return;
+      }
+      
+      updateState(STATES.EVALUATING);
+      
+      const res = await fetch(`/api/rooms/${roomCode}/end`, { method: 'POST' });
+      const data = await res.json();
+      
+      if (data.error) {
+        document.getElementById('status-message').textContent = '⚠️ ' + data.error;
+        updateState(STATES.COLLECTING);
+        return;
+      }
+      
+      updateState(STATES.RESULTS);
+      document.getElementById('status-message').textContent = '✓ Results ready!';
+      document.getElementById('status-message').style.color = 'var(--success)';
+      
+      clearInterval(pollInterval);
+      showFinalResults(data.results);
+    }
+
+    function startPolling() {
+      updateUI();
+      pollInterval = setInterval(updateUI, 2000);
+    }
+
+    async function updateUI() {
+      if (!roomCode) return;
+      
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}`);
+        const data = await res.json();
+
+        document.getElementById('round-display').textContent = data.currentRound || 1;
+        document.getElementById('participant-count').textContent = `${data.participants.length} participant${data.participants.length !== 1 ? 's' : ''}`;
+        
+        // Sync state from server
+        if (data.status !== currentState) {
+          updateState(data.status);
+        }
+        
+        isLocked = data.locked;
+        updateLockUI();
+
+        const list = document.getElementById('participant-list');
+        list.innerHTML = '';
+
+        data.participants.forEach((p, i) => {
+          const isTurn = data.currentTurn === p.id;
+          const row = document.createElement('tr');
+          row.className = 'leaderboard-row';
+          if (isTurn) row.style.backgroundColor = '#EEF2FF';
+
+          const showRemove = currentState !== STATES.RESULTS;
+          
+          row.innerHTML = `
+            <td style="color: #888;">#${i + 1}</td>
+            <td style="font-weight: 500; ${isTurn ? 'color: var(--accent);' : ''}">
+              ${p.name} ${isTurn ? '●' : ''}
+            </td>
+            <td>
+              <span class="args-count">💬 ${p.responses || 0}</span>
+            </td>
+            <td>
+              <span style="font-size: 0.8rem; color: ${isTurn ? 'var(--accent)' : '#666'};">
+                ${isTurn ? 'SPEAKING' : 'WAITING'}
+              </span>
+            </td>
+            <td>
+              ${p.responses > 0 ? `<span class="score-badge">—</span>` : '<span style="color:#ccc;">--</span>'}
+            </td>
+            <td>
+              ${showRemove ? `<button class="remove-btn" onclick="removeParticipant('${p.id}', '${p.name}')">✕ Remove</button>` : ''}
+            </td>
+          `;
+          list.appendChild(row);
+        });
+        
+        // Check for results state
+        if (data.status === STATES.RESULTS && currentState !== STATES.RESULTS) {
+          updateState(STATES.RESULTS);
+          clearInterval(pollInterval);
+          fetchFinalResults();
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
+      }
+    }
+
+    async function fetchFinalResults() {
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/results`);
+        const data = await res.json();
+        showFinalResults(data.results);
+      } catch (e) {
+        console.error('Error fetching results:', e);
+      }
+    }
+
+    function showFinalResults(results) {
+      const list = document.getElementById('participant-list');
+      const metricsContainer = document.getElementById('metrics-container');
+      list.innerHTML = '';
+      metricsContainer.innerHTML = '';
+      
+      if (!results || results.length === 0) {
+        list.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">No results available</td></tr>';
+        return;
+      }
+      
+      results.forEach(p => {
+        const statusClass = p.participationStatus === 'active' ? 'status-active' : 'status-silent';
+        const statusLabel = p.participationStatus === 'active' ? 'ACTIVE' : 'SILENT';
+        
+        // Table row (summary view)
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span style="font-size: 1.2rem; font-weight: bold;">${p.rank}</span></td>
+          <td style="font-weight: 600;">${p.name}</td>
+          <td>
+            <span class="args-count">💬 ${p.argumentsSubmitted || 0}</span>
+          </td>
+          <td>
+            <span class="${statusClass}">${statusLabel}</span>
+          </td>
+          <td><span class="score-badge">${p.averageScore || '--'}</span></td>
+          <td></td>
+        `;
+        list.appendChild(row);
+        
+        // Metric card (detailed view) - matches reference design
+        const scores = p.averageScores || {};
+        const isWinner = p.rank === 1;
+        const card = document.createElement('div');
+        card.className = `metric-card ${isWinner ? 'winner' : ''}`;
+        
+        // Build responses HTML
+        let responsesHTML = '';
+        if (p.responses && p.responses.length > 0) {
+          responsesHTML = `
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+              <p style="color: #888; font-size: 0.8rem; margin-bottom: 0.75rem;">${p.responses.length} response(s)</p>
+              ${p.responses.map((r, i) => `
+                <div style="background: #f8f9fa; padding: 0.75rem; border-radius: 8px; margin-bottom: 0.5rem; border-left: 3px solid var(--accent);">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                    <span style="font-weight: 600; font-size: 0.85rem;">Round ${r.round}</span>
+                    <span style="color: var(--accent); font-weight: 700;">Score: ${r.scores.finalScore}</span>
+                  </div>
+                  <p style="color: #666; font-size: 0.8rem; font-style: italic; margin: 0;">💡 ${r.scores.summary || r.scores.insight || 'No feedback'}</p>
+                  ${r.transcript ? `<p style="color: #999; font-size: 0.75rem; margin: 0.5rem 0 0 0;">"${r.transcript}"</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+        
+        card.innerHTML = `
+          <h4>
+            <span class="rank-badge">${p.rank}</span>
+            ${p.name}
+            ${isWinner ? '<span class="winner-badge">🏆 WINNER</span>' : ''}
+          </h4>
+          <div class="overall-score">${p.averageScore || '--'}</div>
+          
+          <div class="scores-grid">
+            <div class="score-item">
+              <span class="label">Logic</span>
+              <span class="value">${scores.logic || 0}/10</span>
+            </div>
+            <div class="score-item">
+              <span class="label">Clarity</span>
+              <span class="value">${scores.clarity || 0}/10</span>
+            </div>
+            <div class="score-item">
+              <span class="label">Relevance</span>
+              <span class="value">${scores.relevance || 0}/10</span>
+            </div>
+            <div class="score-item">
+              <span class="label">Emotional Bias</span>
+              <span class="value">${scores.emotionalBias || 0}/10</span>
+            </div>
+          </div>
+          
+          ${responsesHTML}
+          
+          ${p.summary ? `<div class="summary-text">"${p.summary}"</div>` : ''}
+        `;
+        metricsContainer.appendChild(card);
+      });
+    }
+
+    // Download report function
+    async function downloadReport(format) {
+      if (!roomCode) {
+        alert('No room code available');
+        return;
+      }
+      
+      try {
+        const url = `/api/rooms/${roomCode}/report?format=${format}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error('Failed to generate report');
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = format === 'json' 
+          ? `debate-report-${roomCode}.json` 
+          : `debate-report-${roomCode}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up the blob URL
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        console.error('Download error:', error);
+        alert('Failed to download report. Please try again.');
+      }
+    }
+
+    // Restore session on page load
+    window.onload = async function() {
+      // Check for room code in URL first
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlRoomCode = urlParams.get('code');
+      
+      const savedHostId = sessionStorage.getItem('hostId');
+      const savedRoomCode = urlRoomCode || sessionStorage.getItem('roomCode');
+      
+      if (savedHostId && savedRoomCode) {
+        try {
+          // Fetch room data from server
+          const res = await fetch(`/api/rooms/${savedRoomCode}`);
+          if (!res.ok) {
+            console.log('Room not found, starting fresh');
+            sessionStorage.removeItem('hostId');
+            sessionStorage.removeItem('roomCode');
+            return;
+          }
+          
+          const data = await res.json();
+          
+          // Restore state
+          roomCode = savedRoomCode;
+          hostId = savedHostId;
+          
+          // Update URL if needed
+          if (!urlRoomCode) {
+            window.history.replaceState({}, '', `?code=${roomCode}`);
+          }
+          
+          // Show room UI
+          document.getElementById('setup-panel').classList.add('hidden');
+          document.getElementById('control-panel').classList.remove('hidden');
+          document.getElementById('room-header').classList.remove('hidden');
+          document.getElementById('waiting-state').classList.add('hidden');
+          document.getElementById('leaderboard-container').classList.remove('hidden');
+          
+          document.getElementById('display-topic').textContent = data.topic;
+          document.getElementById('room-code').textContent = roomCode;
+          
+          // Generate QR
+          document.getElementById('qrcode').innerHTML = '';
+          new QRCode(document.getElementById("qrcode"), {
+            text: `${window.location.origin}/join.html?code=${roomCode}`,
+            width: 200,
+            height: 200,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+          });
+          
+          // Restore current state
+          if (data.status === 'waiting') {
+            updateState(STATES.WAITING);
+          } else if (data.status === 'collecting') {
+            updateState(STATES.COLLECTING);
+          } else if (data.status === 'evaluating') {
+            updateState(STATES.EVALUATING);
+          } else if (data.status === 'results') {
+            updateState(STATES.RESULTS);
+            // Load results
+            loadResults();
+          }
+          
+          // Start polling
+          pollInterval = setInterval(updateUI, 2000);
+          updateUI();
+          
+          console.log('Session restored for room:', roomCode);
+        } catch (error) {
+          console.error('Failed to restore session:', error);
+          sessionStorage.removeItem('hostId');
+          sessionStorage.removeItem('roomCode');
+        }
+      }
+    };
+  </script>
+</body>
+</html>

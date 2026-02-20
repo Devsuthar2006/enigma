@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join Debate - DebAItor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="mobile-dark">
+
+  <!-- Setup View -->
+  <div id="join-form" class="container" style="height: 100vh; display: flex; flex-direction: column; justify-content: center;">
+    <h1 style="color: white; margin-bottom: 2rem;">JOIN<br>SESSION</h1>
+    <input type="text" id="code-input" placeholder="ROOM CODE" class="hidden" style="background: transparent; border: none; border-bottom: 2px solid #333; color: white; border-radius: 0; padding-left: 0; font-size: 1.5rem; margin-bottom: 1rem; text-transform: uppercase;">
+    <input type="text" id="name" placeholder="YOUR NAME" style="background: transparent; border: none; border-bottom: 2px solid #333; color: white; border-radius: 0; padding-left: 0; font-size: 1.5rem; margin-bottom: 2rem;">
+    <button class="btn btn-accent" style="width: 100%; border-radius: 4px;" onclick="joinRoom()">ENTER ARENA</button>
+  </div>
+
+  <!-- Active Debate View (Hidden) -->
+  <div id="debate-interface" class="hidden" style="height: 100%; display: flex; flex-direction: column;">
+    
+    <header class="mobile-header">
+      <div>
+        <h3 id="topic-display" style="font-size: 1rem; margin: 0; opacity: 0.8;">Topic</h3>
+        <p id="status-text" class="status-indicator">STANDBY</p>
+      </div>
+      <div id="status-dot" style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+    </header>
+
+    <div class="main-action-area">
+      <!-- Recording Button -->
+      <button id="record-btn" class="record-btn" disabled>
+        <svg viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </button>
+
+      <!-- Timer -->
+      <div id="timer" class="timer-display">00:30</div>
+      <p id="instruction" class="instruction-text">Wait for your turn</p>
+    </div>
+
+    <!-- Results/Feedback Area -->
+    <div id="feedback-area" style="min-height: 100px; padding: 1rem; background: #1a1a1a; border-radius: 8px; margin-top: auto;">
+      <p style="color: #666; font-size: 0.8rem; margin-bottom: 0.5rem;">AI ANALYSIS</p>
+      <div id="latest-score" style="font-size: 1.5rem; font-weight: 700;">--</div>
+      <p id="latest-insight" style="font-size: 0.9rem; color: #aaa; margin-top: 0.5rem;">Scores will appear here after your turn.</p>
+    </div>
+  </div>
+  
+  <!-- Results View (Hidden) -->
+  <div id="ended-interface" class="hidden" style="min-height: 100vh; background: #0a0a0a; padding: 1rem;">
+    <style>
+      /* Responsive Results Styles */
+      .results-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 1rem;
+      }
+      .results-header {
+        text-align: center;
+        padding: 1.5rem 0;
+        border-bottom: 1px solid #222;
+        margin-bottom: 1.5rem;
+      }
+      .results-header h1 {
+        color: white;
+        font-size: 1.75rem;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .topic-display {
+        background: #1a1a1a;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+      }
+      .topic-display span {
+        color: #888;
+        font-size: 0.8rem;
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+      .topic-display p {
+        color: white;
+        font-weight: 600;
+        margin: 0;
+      }
+      .participant-card {
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        border: 1px solid #222;
+      }
+      .participant-card.winner {
+        border-color: var(--accent);
+        box-shadow: 0 0 20px rgba(108, 99, 255, 0.2);
+      }
+      .participant-card.you {
+        border-color: #4CAF50;
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+      }
+      .rank-name {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .rank {
+        color: var(--accent);
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .name {
+        color: white;
+        font-weight: 600;
+        font-size: 1.1rem;
+      }
+      .you-badge {
+        background: #4CAF50;
+        color: white;
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        margin-left: 0.5rem;
+      }
+      .winner-badge {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        color: #000;
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 700;
+      }
+      .score-box {
+        background: #2a2a2a;
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .score-box .value {
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+      .metric-item {
+        background: #222;
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .metric-item .label {
+        color: #888;
+        font-size: 0.7rem;
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+      .metric-item .value {
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 700;
+      }
+      .responses-section {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #333;
+      }
+      .responses-section h4 {
+        color: #888;
+        font-size: 0.8rem;
+        margin: 0 0 0.75rem 0;
+      }
+      .response-item {
+        background: #222;
+        padding: 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        border-left: 3px solid var(--accent);
+      }
+      .response-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+      }
+      .response-round {
+        color: white;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+      .response-score {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .response-insight {
+        color: #aaa;
+        font-size: 0.8rem;
+        font-style: italic;
+      }
+      .response-transcript {
+        color: #666;
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #333;
+      }
+      .back-btn {
+        display: block;
+        width: 100%;
+        padding: 1rem;
+        background: #1a1a1a;
+        color: white;
+        border: 1px solid #333;
+        border-radius: 8px;
+        text-align: center;
+        text-decoration: none;
+        font-weight: 600;
+        margin-top: 1.5rem;
+      }
+      .back-btn:hover {
+        background: #222;
+      }
+      @media (max-width: 480px) {
+        .results-container { padding: 0.5rem; }
+        .results-header h1 { font-size: 1.4rem; }
+        .participant-card { padding: 1rem; }
+        .metrics-grid { gap: 0.5rem; }
+        .metric-item { padding: 0.5rem; }
+        .metric-item .value { font-size: 1rem; }
+      }
+    </style>
+    
+    <div class="results-container">
+      <div class="results-header">
+        <h1>🏆 Final Results</h1>
+      </div>
+      
+      <div class="topic-display">
+        <span>Topic:</span>
+        <p id="results-topic">Loading...</p>
+      </div>
+      
+      <div id="results-list">
+        <!-- Participant cards will be injected here -->
+      </div>
+      
+      <a href="/" class="back-btn">Start New Debate</a>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let roomCode = urlParams.get('code');
+    let participantId = null;
+    let isRecording = false;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let pollInterval;
+    let lastScore = null;
+
+    // Handle missing code
+    if (!roomCode) {
+      document.getElementById('code-input').classList.remove('hidden');
+    }
+
+    async function joinRoom() {
+      // If code was manually entered
+      if (!roomCode) {
+        roomCode = document.getElementById('code-input').value.toUpperCase();
+      }
+
+      const name = document.getElementById('name').value;
+      if (!roomCode) return alert('Room code required');
+      if (!name) return alert('Name required');
+
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+        
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        participantId = data.participantId;
+        
+        // Save session for refresh restoration
+        sessionStorage.setItem('participantId', participantId);
+        sessionStorage.setItem('roomCode', roomCode);
+        sessionStorage.setItem('participantName', name);
+        
+        // Switch UI
+        document.getElementById('join-form').classList.add('hidden');
+        document.getElementById('debate-interface').classList.remove('hidden');
+        document.getElementById('debate-interface').style.display = 'flex';
+        document.getElementById('topic-display').textContent = data.topic;
+
+        // Initialize Audio
+        await initAudio();
+        
+        // Start Polling
+        pollInterval = setInterval(checkStatus, 1000);
+        checkStatus(); // Immediate check
+
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+    
+    // Restore session on page load
+    window.onload = async function() {
+      const savedParticipantId = sessionStorage.getItem('participantId');
+      const savedRoomCode = sessionStorage.getItem('roomCode');
+      
+      // Prefer URL parameter, then session storage
+      if (!roomCode && savedRoomCode) {
+        roomCode = savedRoomCode;
+      }
+      
+      if (savedParticipantId && roomCode) {
+        try {
+          // Check if room still exists
+          const res = await fetch(`/api/rooms/${roomCode}`);
+          if (!res.ok) {
+            console.log('Room not found, clearing session');
+            sessionStorage.removeItem('participantId');
+            sessionStorage.removeItem('roomCode');
+            sessionStorage.removeItem('participantName');
+            return;
+          }
+          
+          const data = await res.json();
+          
+          // Check if participant is still in the room
+          const isStillInRoom = data.participants.some(p => p.id === savedParticipantId);
+          
+          if (isStillInRoom) {
+            participantId = savedParticipantId;
+            
+            // Switch UI
+            document.getElementById('join-form').classList.add('hidden');
+            document.getElementById('debate-interface').classList.remove('hidden');
+            document.getElementById('debate-interface').style.display = 'flex';
+            document.getElementById('topic-display').textContent = data.topic;
+            
+            // Check if debate has ended
+            if (data.status === 'results' || data.status === 'evaluating') {
+              showEndedScreen();
+              return;
+            }
+            
+            // Initialize Audio
+            await initAudio();
+            
+            // Start Polling
+            pollInterval = setInterval(checkStatus, 1000);
+            checkStatus();
+            
+            console.log('Session restored for participant:', savedParticipantId);
+          } else {
+            // Participant was removed, clear session
+            sessionStorage.removeItem('participantId');
+            sessionStorage.removeItem('roomCode');
+            sessionStorage.removeItem('participantName');
+          }
+        } catch (error) {
+          console.error('Failed to restore session:', error);
+        }
+      }
+    };
+
+    async function initAudio() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = uploadAudio;
+      } catch (e) {
+        alert('Microphone access denied. You cannot participate.');
+      }
+    }
+
+    async function checkStatus() {
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/turn-status?participantId=${participantId}`);
+        const data = await res.json();
+        
+        // Check if debate ended (results state)
+        if (data.status === 'results' || data.status === 'evaluating') {
+          clearInterval(pollInterval);
+          showEndedScreen();
+          return;
+        }
+        
+        const btn = document.getElementById('record-btn');
+        const status = document.getElementById('status-text');
+        const instruction = document.getElementById('instruction');
+        const statusDot = document.getElementById('status-dot');
+
+        if (data.isMyTurn && !isRecording) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          status.textContent = 'YOUR TURN';
+          status.style.color = 'var(--accent)';
+          statusDot.style.background = 'var(--accent)';
+          instruction.textContent = 'Tap microphone to start';
+          
+          // Add click handler
+          btn.onclick = () => {
+            if (!isRecording) startRecording();
+            else stopRecording();
+          };
+        } else if (!data.isMyTurn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+          status.textContent = data.currentTurnName ? `${data.currentTurnName}'S TURN` : 'WAITING';
+          status.style.color = '#666';
+          statusDot.style.background = 'var(--success)';
+          instruction.textContent = 'Wait for your turn';
+        }
+      } catch (e) {
+        console.error('Status check error:', e);
+      }
+    }
+
+    async function showEndedScreen() {
+      document.getElementById('debate-interface').style.display = 'none';
+      document.getElementById('ended-interface').classList.remove('hidden');
+      document.getElementById('ended-interface').style.display = 'block';
+      
+      // Fetch full results
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/results`);
+        const data = await res.json();
+        
+        if (data.error) {
+          console.error('Results error:', data.error);
+          return;
+        }
+        
+        // Display topic
+        document.getElementById('results-topic').textContent = data.topic || 'Debate';
+        
+        // Build results list
+        const resultsList = document.getElementById('results-list');
+        resultsList.innerHTML = '';
+        
+        const participantName = sessionStorage.getItem('participantName');
+        
+        data.results.forEach((p, index) => {
+          const isWinner = p.rank === 1;
+          const isYou = p.id === participantId;
+          const scores = p.averageScores || {};
+          
+          const card = document.createElement('div');
+          card.className = `participant-card ${isWinner ? 'winner' : ''} ${isYou ? 'you' : ''}`;
+          
+          // Build responses HTML
+          let responsesHTML = '';
+          if (p.responses && p.responses.length > 0) {
+            responsesHTML = `
+              <div class="responses-section">
+                <h4>${p.responses.length} response(s)</h4>
+                ${p.responses.map((r, i) => `
+                  <div class="response-item">
+                    <div class="response-header">
+                      <span class="response-round">Round ${r.round}</span>
+                      <span class="response-score">Score: ${r.scores.finalScore}</span>
+                    </div>
+                    <div class="response-insight">💡 ${r.scores.summary || r.scores.insight || 'No feedback'}</div>
+                    ${r.transcript ? `<div class="response-transcript">"${r.transcript}"</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }
+          
+          card.innerHTML = `
+            <div class="card-header">
+              <div class="rank-name">
+                <span class="rank">#${p.rank}</span>
+                <span class="name">
+                  ${p.name}
+                  ${isYou ? '<span class="you-badge">YOU</span>' : ''}
+                  ${isWinner ? '<span class="winner-badge">🏆 WINNER</span>' : ''}
+                </span>
+              </div>
+              <div class="score-box">
+                <span class="value">${p.averageScore || '--'}</span>
+              </div>
+            </div>
+            
+            <div class="metrics-grid">
+              <div class="metric-item">
+                <span class="label">Logic</span>
+                <span class="value">${scores.logic || 0}/10</span>
+              </div>
+              <div class="metric-item">
+                <span class="label">Clarity</span>
+                <span class="value">${scores.clarity || 0}/10</span>
+              </div>
+              <div class="metric-item">
+                <span class="label">Relevance</span>
+                <span class="value">${scores.relevance || 0}/10</span>
+              </div>
+              <div class="metric-item">
+                <span class="label">Emotional Bias</span>
+                <span class="value">${scores.emotionalBias || 0}/10</span>
+              </div>
+            </div>
+            
+            ${responsesHTML}
+          `;
+          
+          resultsList.appendChild(card);
+        });
+        
+      } catch (e) {
+        console.error('Error fetching results:', e);
+      }
+    }
+
+    let timeLeft = 30;
+    let timerInterval;
+
+    function startRecording() {
+      isRecording = true;
+      audioChunks = [];
+      mediaRecorder.start();
+      
+      const btn = document.getElementById('record-btn');
+      btn.classList.add('recording');
+      document.getElementById('instruction').textContent = 'Recording... Tap to stop';
+      
+      // Timer
+      timeLeft = 30;
+      updateTimer();
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+        if (timeLeft <= 0) stopRecording();
+      }, 1000);
+    }
+
+    function stopRecording() {
+      if (!isRecording) return;
+      isRecording = false;
+      mediaRecorder.stop();
+      clearInterval(timerInterval);
+      
+      const btn = document.getElementById('record-btn');
+      btn.classList.remove('recording');
+      btn.disabled = true;
+      document.getElementById('instruction').textContent = 'Uploading response...';
+    }
+
+    function updateTimer() {
+      const display = `00:${timeLeft.toString().padStart(2, '0')}`;
+      document.getElementById('timer').textContent = display;
+    }
+
+    async function uploadAudio() {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'response.webm');
+      formData.append('participantId', participantId);
+
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/submit`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        // Show immediate feedback
+        lastScore = data.scores.finalScore;
+        document.getElementById('latest-score').textContent = data.scores.finalScore;
+        document.getElementById('latest-insight').textContent = data.scores.insight;
+        document.getElementById('instruction').textContent = 'Response submitted!';
+
+      } catch (e) {
+        console.error(e);
+        alert('Upload failed');
+      }
+    }
+  </script>
+</body>
+</html>
