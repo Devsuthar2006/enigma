@@ -1025,6 +1025,105 @@ AI Feedback: ${response.feedback || 'No feedback available'}
   res.send(report);
 });
 
+// ============ PARTICIPATION ANALYTICS ============
+
+/**
+ * Get participation analytics for a room
+ */
+app.get('/api/rooms/:code/analytics', async (req, res) => {
+  const roomCode = req.params.code.toUpperCase();
+  const room = await getRoom(roomCode);
+
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+
+  const participantCount = room.participants.size;
+  if (participantCount === 0) {
+    return res.json({
+      roomCode,
+      topic: room.topic,
+      totalParticipants: 0,
+      totalArguments: 0,
+      averageArgsPerPerson: 0,
+      balanceScore: 0,
+      participants: [],
+      lowContributors: [],
+      zeroContributors: []
+    });
+  }
+
+  // Compute per-participant metrics
+  let totalArguments = 0;
+  const participantMetrics = [];
+
+  for (const [id, data] of room.participants) {
+    const argCount = data.responses?.length || 0;
+    totalArguments += argCount;
+    participantMetrics.push({
+      id,
+      name: data.name,
+      argumentCount: argCount
+    });
+  }
+
+  const averageArgsPerPerson = participantCount > 0
+    ? Math.round((totalArguments / participantCount) * 10) / 10
+    : 0;
+
+  // Compute contribution percentage and status
+  participantMetrics.forEach(p => {
+    p.contributionPct = totalArguments > 0
+      ? Math.round((p.argumentCount / totalArguments) * 1000) / 10
+      : 0;
+    
+    // Status: zero, low (below average), active (at or above average)
+    if (p.argumentCount === 0) {
+      p.status = 'zero';
+    } else if (p.argumentCount < averageArgsPerPerson) {
+      p.status = 'low';
+    } else {
+      p.status = 'active';
+    }
+  });
+
+  // Sort by argument count descending
+  participantMetrics.sort((a, b) => b.argumentCount - a.argumentCount);
+
+  // Identify low and zero contributors
+  const zeroContributors = participantMetrics.filter(p => p.status === 'zero').map(p => p.name);
+  const lowContributors = participantMetrics.filter(p => p.status === 'low').map(p => p.name);
+
+  // Compute participation balance score (0-100)
+  // Uses normalized standard deviation: 100 = perfectly balanced, 0 = maximally unbalanced
+  let balanceScore = 100;
+  if (participantCount > 1 && totalArguments > 0) {
+    const mean = totalArguments / participantCount;
+    const variance = participantMetrics.reduce((sum, p) => {
+      return sum + Math.pow(p.argumentCount - mean, 2);
+    }, 0) / participantCount;
+    const stdDev = Math.sqrt(variance);
+    // Coefficient of variation, capped at 1
+    const cv = Math.min(stdDev / mean, 1);
+    balanceScore = Math.round((1 - cv) * 100);
+  } else if (totalArguments === 0) {
+    balanceScore = 0;
+  }
+
+  res.json({
+    roomCode,
+    topic: room.topic,
+    totalParticipants: participantCount,
+    totalArguments,
+    totalRounds: room.currentRound || 0,
+    averageArgsPerPerson,
+    balanceScore,
+    participants: participantMetrics,
+    lowContributors,
+    zeroContributors
+  });
+});
+
 // ============ AI EVALUATION ============
 
 function calculateFinalScore(scores, mode = 'debate') {

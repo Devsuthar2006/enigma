@@ -349,6 +349,142 @@
       margin-top: -0.5rem;
       margin-bottom: 0.5rem;
     }
+    /* Results Tab Navigation */
+    .results-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 2px solid #eee;
+      margin-bottom: 2rem;
+    }
+    .results-tab {
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #888;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+    .results-tab:hover {
+      color: var(--accent);
+    }
+    .results-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    /* Analytics Dashboard */
+    .analytics-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border: 1px solid #eee;
+    }
+    .stat-card .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #333;
+      line-height: 1;
+    }
+    .stat-card .stat-label {
+      font-size: 0.7rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.4rem;
+    }
+    .stat-card.accent .stat-value {
+      color: var(--accent);
+    }
+    .stat-card.success .stat-value {
+      color: #2e7d32;
+    }
+    .stat-card.warn .stat-value {
+      color: #e65100;
+    }
+    .balance-meter {
+      width: 100%;
+      height: 8px;
+      background: #eee;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .balance-meter-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .contribution-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    .contribution-table th {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 2px solid #eee;
+      color: #888;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .contribution-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .contribution-bar {
+      height: 6px;
+      background: #eee;
+      border-radius: 3px;
+      overflow: hidden;
+      min-width: 80px;
+    }
+    .contribution-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--accent);
+      transition: width 0.4s ease;
+    }
+    .contrib-status {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .contrib-status.active { background: #e8f5e9; color: #2e7d32; }
+    .contrib-status.low { background: #fff3e0; color: #e65100; }
+    .contrib-status.zero { background: #ffebee; color: #c62828; }
+    .alert-box {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+    .alert-box.warning {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffe0b2;
+    }
+    .alert-box.danger {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ffcdd2;
+    }
   </style>
 </head>
 <body>
@@ -469,8 +605,43 @@
             </button>
           </div>
         </div>
-        <div id="metrics-container" class="metrics-grid">
-          <!-- Metric cards injected here -->
+
+        <!-- Tab Navigation -->
+        <div class="results-tabs">
+          <button class="results-tab active" id="tab-scores" onclick="switchTab('scores')">🎯 Scores</button>
+          <button class="results-tab" id="tab-analytics" onclick="switchTab('analytics')">📈 Participation</button>
+        </div>
+
+        <!-- Scores Tab Content -->
+        <div id="tab-scores-content">
+          <div id="metrics-container" class="metrics-grid">
+            <!-- Metric cards injected here -->
+          </div>
+        </div>
+
+        <!-- Analytics Tab Content -->
+        <div id="tab-analytics-content" class="hidden">
+          <div class="analytics-stats" id="analytics-stats">
+            <!-- Stat cards injected here -->
+          </div>
+          <div id="analytics-alerts" style="margin-bottom: 1.5rem;"></div>
+          <div style="background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee;">
+            <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem;">Contribution Breakdown</h4>
+            <table class="contribution-table">
+              <thead>
+                <tr>
+                  <th>Participant</th>
+                  <th>Arguments</th>
+                  <th>Contribution</th>
+                  <th>Share</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="contribution-tbody">
+                <!-- Rows injected here -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </main>
@@ -831,6 +1002,8 @@
 
     function showFinalResults(results, modeWeights, modeLabel) {
       showWeightLegend(modeWeights, modeLabel);
+      // Auto-fetch analytics when results are shown
+      fetchAnalytics();
       const list = document.getElementById('participant-list');
       const metricsContainer = document.getElementById('metrics-container');
       list.innerHTML = '';
@@ -962,6 +1135,113 @@
         console.error('Download error:', error);
         alert('Failed to download report. Please try again.');
       }
+    }
+
+    // ============ TAB SWITCHING ============
+
+    function switchTab(tab) {
+      document.getElementById('tab-scores').classList.toggle('active', tab === 'scores');
+      document.getElementById('tab-analytics').classList.toggle('active', tab === 'analytics');
+      document.getElementById('tab-scores-content').classList.toggle('hidden', tab !== 'scores');
+      document.getElementById('tab-analytics-content').classList.toggle('hidden', tab !== 'analytics');
+    }
+
+    // ============ PARTICIPATION ANALYTICS ============
+
+    async function fetchAnalytics() {
+      if (!roomCode) return;
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/analytics`);
+        const data = await res.json();
+        if (!data.error) {
+          renderAnalytics(data);
+        }
+      } catch (e) {
+        console.error('Analytics fetch error:', e);
+      }
+    }
+
+    function getBalanceColor(score) {
+      if (score >= 80) return '#2e7d32';
+      if (score >= 50) return '#e65100';
+      return '#c62828';
+    }
+
+    function getBalanceLabel(score) {
+      if (score >= 80) return 'Balanced';
+      if (score >= 50) return 'Moderate';
+      return 'Imbalanced';
+    }
+
+    function renderAnalytics(data) {
+      const statsEl = document.getElementById('analytics-stats');
+      const alertsEl = document.getElementById('analytics-alerts');
+      const tbodyEl = document.getElementById('contribution-tbody');
+
+      const balanceColor = getBalanceColor(data.balanceScore);
+      const balanceLabel = getBalanceLabel(data.balanceScore);
+
+      // Stat cards
+      statsEl.innerHTML = `
+        <div class="stat-card accent">
+          <div class="stat-value">${data.totalParticipants}</div>
+          <div class="stat-label">Participants</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${data.totalArguments}</div>
+          <div class="stat-label">Total Arguments</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${data.totalRounds}</div>
+          <div class="stat-label">Rounds</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${data.averageArgsPerPerson}</div>
+          <div class="stat-label">Avg per Person</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color: ${balanceColor}">${data.balanceScore}%</div>
+          <div class="stat-label">Balance Score</div>
+          <div class="balance-meter">
+            <div class="balance-meter-fill" style="width: ${data.balanceScore}%; background: ${balanceColor};"></div>
+          </div>
+          <div style="font-size: 0.65rem; color: ${balanceColor}; margin-top: 0.25rem; font-weight: 600;">${balanceLabel}</div>
+        </div>
+      `;
+
+      // Alerts
+      let alertsHTML = '';
+      if (data.zeroContributors.length > 0) {
+        alertsHTML += `<div class="alert-box danger">
+          ⚠️ <strong>Zero contributions:</strong> ${data.zeroContributors.join(', ')} did not submit any arguments.
+        </div>`;
+      }
+      if (data.lowContributors.length > 0) {
+        alertsHTML += `<div class="alert-box warning">
+          📉 <strong>Below average:</strong> ${data.lowContributors.join(', ')} contributed less than the group average (${data.averageArgsPerPerson}).
+        </div>`;
+      }
+      alertsEl.innerHTML = alertsHTML;
+
+      // Contribution table
+      const maxArgs = data.participants.length > 0 ? data.participants[0].argumentCount : 1;
+      tbodyEl.innerHTML = data.participants.map(p => {
+        const barWidth = maxArgs > 0 ? (p.argumentCount / maxArgs) * 100 : 0;
+        const statusLabels = { active: 'ACTIVE', low: 'LOW', zero: 'SILENT' };
+        return `
+          <tr>
+            <td style="font-weight: 600;">${p.name}</td>
+            <td>${p.argumentCount}</td>
+            <td>
+              <div class="contribution-bar">
+                <div class="contribution-bar-fill" style="width: ${barWidth}%"></div>
+              </div>
+            </td>
+            <td style="font-weight: 600;">${p.contributionPct}%</td>
+            <td><span class="contrib-status ${p.status}">${statusLabels[p.status]}</span></td>
+          </tr>
+        `;
+      }).join('');
     }
 
     // Restore session on page load
