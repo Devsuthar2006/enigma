@@ -529,7 +529,7 @@
         document.getElementById('topic-display').textContent = data.topic;
 
         await initAudio();
-        pollInterval = setInterval(checkStatus, 1000);
+        pollInterval = setInterval(checkStatus, 2000);
         checkStatus();
       } catch (e) {
         alert(e.message);
@@ -566,7 +566,7 @@
               return;
             }
             await initAudio();
-            pollInterval = setInterval(checkStatus, 1000);
+            pollInterval = setInterval(checkStatus, 2000);
             checkStatus();
           } else {
             sessionStorage.removeItem('participantId');
@@ -590,16 +590,26 @@
       }
     }
 
+    let lastTurnStatus = null;
+
     async function checkStatus() {
       try {
         const res = await fetch(`/api/rooms/${roomCode}/turn-status?participantId=${participantId}`);
+        if (!res.ok) return; // Don't touch UI on failed request
+        
         const data = await res.json();
+        if (data.error) return;
 
         if (data.status === 'results' || data.status === 'evaluating') {
           clearInterval(pollInterval);
           showEndedScreen();
           return;
         }
+
+        // Skip DOM update if nothing changed
+        const fingerprint = `${data.isMyTurn}-${data.currentTurnName}-${data.status}`;
+        if (fingerprint === lastTurnStatus) return;
+        lastTurnStatus = fingerprint;
 
         const btn = document.getElementById('record-btn');
         const status = document.getElementById('status-text');
@@ -621,7 +631,8 @@
           instruction.textContent = 'Wait for your turn';
         }
       } catch (e) {
-        console.error('Status check error:', e);
+        // Network error — don't touch UI, just wait for next poll
+        console.warn('Status check error (will retry):', e.message);
       }
     }
 

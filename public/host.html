@@ -1403,9 +1403,11 @@
       showFinalResults(data.results, data.modeWeights, data.modeLabel, data.mode);
     }
 
+    let lastPollData = null; // Track last successful poll to avoid unnecessary DOM updates
+
     function startPolling() {
       updateUI();
-      pollInterval = setInterval(updateUI, 2000);
+      pollInterval = setInterval(updateUI, 3000);
     }
 
     async function updateUI() {
@@ -1413,7 +1415,31 @@
       
       try {
         const res = await fetch(`/api/rooms/${roomCode}`);
+        
+        // Don't touch UI if response failed
+        if (!res.ok) {
+          console.warn('Poll returned non-OK status:', res.status);
+          return;
+        }
+        
         const data = await res.json();
+        if (data.error) {
+          console.warn('Poll returned error:', data.error);
+          return;
+        }
+
+        // Quick check: if data hasn't changed, skip DOM updates entirely
+        const dataFingerprint = JSON.stringify({
+          status: data.status,
+          locked: data.locked,
+          round: data.currentRound,
+          turn: data.currentTurn,
+          pCount: data.participants.length,
+          pResponses: data.participants.map(p => p.responses)
+        });
+        
+        if (dataFingerprint === lastPollData) return; // No changes, skip update
+        lastPollData = dataFingerprint;
 
         document.getElementById('round-display').textContent = data.currentRound || 1;
         document.getElementById('participant-count').textContent = `${data.participants.length} participant${data.participants.length !== 1 ? 's' : ''}`;
@@ -1431,39 +1457,36 @@
         isLocked = data.locked;
         updateLockUI();
 
+        // Rebuild participant list
         const list = document.getElementById('participant-list');
-        list.innerHTML = '';
-
-        data.participants.forEach((p, i) => {
+        const newHTML = data.participants.map((p, i) => {
           const isTurn = data.currentTurn === p.id;
-          const row = document.createElement('tr');
-          row.className = 'leaderboard-row';
-          if (isTurn) row.style.backgroundColor = '#EEF2FF';
-
           const showRemove = currentState !== STATES.RESULTS;
-          
-          row.innerHTML = `
-            <td style="color: #888;">#${i + 1}</td>
-            <td style="font-weight: 500; ${isTurn ? 'color: var(--accent);' : ''}">
-              ${p.name} ${isTurn ? '●' : ''}
-            </td>
-            <td>
-              <span class="args-count">💬 ${p.responses || 0}</span>
-            </td>
-            <td>
-              <span style="font-size: 0.8rem; color: ${isTurn ? 'var(--accent)' : '#666'};">
-                ${isTurn ? 'SPEAKING' : 'WAITING'}
-              </span>
-            </td>
-            <td>
-              ${p.responses > 0 ? `<span class="score-badge">—</span>` : '<span style="color:#ccc;">--</span>'}
-            </td>
-            <td>
-              ${showRemove ? `<button class="remove-btn" onclick="removeParticipant('${p.id}', '${p.name}')">✕ Remove</button>` : ''}
-            </td>
+          return `
+            <tr class="leaderboard-row" ${isTurn ? 'style="background-color: #f0f4ff;"' : ''}>
+              <td style="color: #9ca3af;">#${i + 1}</td>
+              <td style="font-weight: 500; ${isTurn ? 'color: var(--accent);' : ''}">
+                ${p.name} ${isTurn ? '●' : ''}
+              </td>
+              <td>
+                <span class="args-count">💬 ${p.responses || 0}</span>
+              </td>
+              <td>
+                <span style="font-size: 0.78rem; color: ${isTurn ? 'var(--accent)' : '#6b7280'};">
+                  ${isTurn ? 'SPEAKING' : 'WAITING'}
+                </span>
+              </td>
+              <td>
+                ${p.responses > 0 ? `<span class="score-badge">—</span>` : '<span style="color:#d1d5db;">--</span>'}
+              </td>
+              <td>
+                ${showRemove ? `<button class="remove-btn" onclick="removeParticipant('${p.id}', '${p.name}')">✕ Remove</button>` : ''}
+              </td>
+            </tr>
           `;
-          list.appendChild(row);
-        });
+        }).join('');
+        
+        list.innerHTML = newHTML;
         
         // Check for results state
         if (data.status === STATES.RESULTS && currentState !== STATES.RESULTS) {
@@ -1472,7 +1495,8 @@
           fetchFinalResults();
         }
       } catch (e) {
-        console.error('Polling error:', e);
+        // Network error — do NOT clear UI, just log and wait for next poll
+        console.warn('Polling error (will retry):', e.message);
       }
     }
 
