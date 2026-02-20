@@ -327,6 +327,7 @@
       border-radius: 6px;
     }
     .p-metric .m-label {
+      display: block;
       font-size: 0.65rem;
       font-weight: 600;
       color: var(--text-muted);
@@ -334,10 +335,11 @@
       letter-spacing: 0.03em;
     }
     .p-metric .m-value {
-      font-size: 1rem;
+      display: block;
+      font-size: 1.1rem;
       font-weight: 700;
       color: var(--text-primary);
-      margin-top: 0.15rem;
+      margin-top: 0.2rem;
     }
 
     /* Responses expandable */
@@ -752,8 +754,25 @@
 
     async function initAudio() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        // Enhanced audio constraints for better voice capture
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 16000,
+            channelCount: 1
+          }
+        });
+        
+        // Prefer webm/opus for best Whisper compatibility
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : undefined;
+        
+        mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
         mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
         mediaRecorder.onstop = uploadAudio;
       } catch (e) {

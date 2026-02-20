@@ -21,6 +21,8 @@ const fs = require('fs');
 const os = require('os');
 const QRCode = require('qrcode');
 const OpenAI = require('openai');
+const PDFDocument = require('pdfkit');
+const admin = require('firebase-admin');
 
 // Firebase imports
 const firebaseHelper = require('./firebase');
@@ -580,6 +582,49 @@ app.post('/api/rooms/:code/next-turn', async (req, res) => {
 });
 
 /**
+ * HOST: Manually assign turn to a participant
+ */
+app.post('/api/rooms/:code/assign-turn', async (req, res) => {
+  const roomCode = req.params.code.toUpperCase();
+  const { participantId } = req.body;
+  const room = await getRoom(roomCode);
+
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+
+  if (room.status !== STATES.COLLECTING) {
+    return res.status(400).json({ error: 'Debate not active. Current state: ' + room.status });
+  }
+
+  if (!room.participants.has(participantId)) {
+    return res.status(404).json({ error: 'Participant not found' });
+  }
+
+  // Find their internal order index just so we can resume automatically from here later if needed
+  // (optional, but good for keeping rounds consistent)
+  const currentRound = room.currentRound;
+
+  const updates = { currentTurn: participantId };
+  await updateRoomData(roomCode, updates);
+  
+  // Update memory
+  if (memoryRooms.has(roomCode)) {
+    Object.assign(memoryRooms.get(roomCode), updates);
+  }
+
+  const currentName = room.participants.get(participantId)?.name;
+  console.log(`Manually assigned turn to: ${currentName}`);
+
+  res.json({ 
+    success: true,
+    currentTurn: participantId,
+    currentTurnName: currentName,
+    round: currentRound
+  });
+});
+
+/**
  * HOST: End debate and calculate results
  */
 app.post('/api/rooms/:code/end', async (req, res) => {
@@ -718,15 +763,35 @@ app.post('/api/rooms/:code/submit', upload.single('audio'), async (req, res) => 
     } else {
       console.log(`Transcribing audio for ${participant.name}...`);
       
-      const audioFile = fs.createReadStream(req.file.path);
+      // Enhance audio with FFmpeg if available
+      let audioPath = req.file.path;
+      try {
+        const { execSync } = require('child_process');
+        const enhancedPath = req.file.path + '_enhanced.webm';
+        execSync(`ffmpeg -i "${req.file.path}" -af "highpass=f=80,lowpass=f=8000,anlmdn=s=7,acompressor=threshold=-20dB:ratio=4:attack=5:release=50" -y "${enhancedPath}" 2>/dev/null`, { timeout: 10000 });
+        audioPath = enhancedPath;
+        console.log('Audio enhanced with FFmpeg');
+      } catch (ffmpegErr) {
+        // FFmpeg not available or failed — use raw audio
+        console.log('FFmpeg not available, using raw audio');
+      }
+
+      const audioFile = fs.createReadStream(audioPath);
+      // Let Whisper auto-detect language, but provide a hint for mixed languages
+      // The prompt hints to Whisper that the input might be Hinglish/Hindi/English mixed.
       const transcription = await openai.audio.transcriptions.create({
         file: audioFile,
         model: 'whisper-1',
-        language: 'en'
+        prompt: "Hello, kaise ho? I am fine. Yeh ek mixed conversation hai. Please transcribe exactly as spoken."
       });
 
+      // Clean up enhanced file if it was created
+      if (audioPath !== req.file.path) {
+        fs.unlink(audioPath, () => {});
+      }
+
       transcript = transcription.text;
-      console.log(`Transcript: "${transcript.substring(0, 50)}..."`);
+      console.log(`Transcript: "${transcript.substring(0, 80)}..."`);
 
       console.log(`Evaluating response...`);
       evaluation = await evaluateResponse(room.topic, transcript, room.mode || 'debate');
@@ -925,107 +990,91 @@ app.get('/api/rooms/:code/report', async (req, res) => {
     });
   }
 
-  // Text format
-  const winner = results[0];
-  const reportDate = new Date().toLocaleString();
-  
-  let report = `
-╔══════════════════════════════════════════════════════════════════════╗
-║                      DEBAITOR - DISCUSSION REPORT                    ║
-╚══════════════════════════════════════════════════════════════════════╝
+  // PDF format
+  if (format === 'pdf') {
+    try {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="debate-report-${roomCode}.pdf"`);
 
-Report Generated: ${reportDate}
-Room Code: ${roomCode}
-Topic: ${room.topic}
-Mode: ${MODE_WEIGHTS[room.mode || 'debate'].label}
-Total Rounds: ${room.currentRound}
-Total Participants: ${results.length}
+      const doc = new PDFDocument({ margin: 50 });
+      doc.pipe(res);
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                              🏆 WINNER
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${winner ? `${winner.name} (Score: ${winner.averageScore}/10)` : 'No winner'}
+      const winner = results[0];
+      const reportDate = new Date().toLocaleString();
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                        FINAL STANDINGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
+      doc.fontSize(20).text('DebAItor - Session Report', { align: 'center' });
+      doc.moveDown();
 
-  results.forEach(p => {
-    report += `
-#${p.rank} ${p.name}
-   Overall Score: ${p.averageScore}/10
-   Responses: ${p.totalResponses}
-   ├─ Logic:          ${p.averageScores?.logic || 0}/10
-   ├─ Clarity:        ${p.averageScores?.clarity || 0}/10
-   ├─ Relevance:      ${p.averageScores?.relevance || 0}/10
-   └─ Emotional Bias: ${p.averageScores?.emotionalBias || 0}/10
-`;
-  });
+      doc.fontSize(12).text(`Generated: ${reportDate}`);
+      doc.text(`Room Code: ${roomCode}`);
+      doc.text(`Topic: ${room.topic}`);
+      doc.text(`Mode: ${MODE_WEIGHTS[room.mode || 'debate'].label}`);
+      doc.text(`Total Rounds: ${room.currentRound}`);
+      doc.text(`Participants: ${results.length}`);
+      doc.moveDown();
 
-  // Add complete conversation transcript
-  report += `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                     COMPLETE CONVERSATION TRANSCRIPT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
+      doc.fontSize(16).text('Winner', { align: 'center', underline: true });
+      doc.moveDown();
+      if (winner) {
+        doc.fontSize(14).text(`${winner.name} (Score: ${winner.averageScore}/10)`, { align: 'center' });
+      }
+      doc.moveDown();
 
-  // Collect all responses with timestamps and organize by round
-  const allResponses = [];
-  results.forEach(p => {
-    if (p.responses && p.responses.length > 0) {
-      p.responses.forEach((response, idx) => {
-        allResponses.push({
-          name: p.name,
-          round: response.round || idx + 1,
-          transcript: response.transcript || '[No transcript available]',
-          score: response.scores?.finalScore || 0,
-          feedback: response.scores?.insight || '',
-          timestamp: response.timestamp || Date.now()
-        });
+      doc.fontSize(16).text('Final Standings', { underline: true });
+      doc.moveDown();
+
+      results.forEach(p => {
+        doc.fontSize(12).text(`#${p.rank} ${p.name} - Score: ${p.averageScore}/10`);
+        doc.fontSize(10).text(`   Responses: ${p.totalResponses}`);
+        doc.text(`   Logic: ${p.averageScores?.logic || 0} | Clarity: ${p.averageScores?.clarity || 0} | Relevance: ${p.averageScores?.relevance || 0} | Bias: ${p.averageScores?.emotionalBias || 0}`);
+        doc.moveDown();
       });
+
+      doc.addPage();
+      doc.fontSize(16).text('Complete Conversation Transcript', { align: 'center', underline: true });
+      doc.moveDown();
+
+      const allResponses = [];
+      results.forEach(p => {
+        if (p.responses) {
+          p.responses.forEach(r => {
+            allResponses.push({ ...r, participantName: p.name });
+          });
+        }
+      });
+
+      allResponses.sort((a, b) => a.submittedAt - b.submittedAt);
+      let currentRoundTracker = -1;
+      
+      allResponses.forEach(r => {
+        if (r.round !== currentRoundTracker) {
+          currentRoundTracker = r.round;
+          doc.moveDown();
+          doc.fontSize(14).text(`--- ROUND ${currentRoundTracker} ---`, { underline: true });
+          doc.moveDown();
+        }
+        
+        const timeString = new Date(r.submittedAt).toLocaleTimeString();
+        doc.fontSize(12).text(`[${timeString}] ${r.participantName} - Score: ${calculateFinalScore(r.scores || {}, room.mode || 'debate')}/10`);
+        doc.fontSize(10).text(`"${r.transcript || '[No transcript available]'}"`, { oblique: true });
+        if (r.scores?.summary) {
+          doc.moveDown(0.5);
+          doc.text(`Summary: ${r.scores.summary}`);
+        }
+        doc.moveDown();
+      });
+
+      doc.end();
+      return;
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      if (!res.headersSent) res.status(500).json({ error: 'PDF Generation failed' });
+      return;
     }
-  });
-
-  // Sort by round then timestamp
-  allResponses.sort((a, b) => {
-    if (a.round !== b.round) return a.round - b.round;
-    return a.timestamp - b.timestamp;
-  });
-
-  // Group by round
-  let currentRound = 0;
-  allResponses.forEach(response => {
-    if (response.round !== currentRound) {
-      currentRound = response.round;
-      report += `
-────────────────────── ROUND ${currentRound} ──────────────────────
-`;
-    }
-    
-    report += `
-[${response.name}] (Score: ${response.score}/10)
-"${response.transcript}"
-
-AI Feedback: ${response.feedback || 'No feedback available'}
-`;
-  });
-
-  if (allResponses.length === 0) {
-    report += `
-[No responses recorded in this debate]
-`;
   }
 
-  report += `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                     Generated by DebAItor
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`;
-
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="debate-report-${roomCode}.txt"`);
-  res.send(report);
+  // Fallback if unknown format
+  res.status(400).json({ error: 'Unsupported format' });
 });
 
 // ============ PARTICIPATION ANALYTICS ============
@@ -1314,6 +1363,7 @@ async function evaluateResponse(topic, transcript, mode = 'debate') {
 
 Task:
 Evaluate the following discussion argument based ONLY on how it is presented.
+The argument may be in English, Hindi, or Hinglish (mixed). Evaluate it fairly regardless of language.
 
 Evaluation Criteria (score each from 1 to 10):
 1. Logic – How well-structured and logical the argument is.
@@ -1321,13 +1371,15 @@ Evaluation Criteria (score each from 1 to 10):
 3. Relevance – How well the argument stays on the given topic.
 4. Emotional Bias – How emotional vs objective the argument is.
 
+Provide the summary STRICTLY IN ENGLISH, no matter what language the argument is in.
+
 Return ONLY a valid JSON object:
 {
   "logic": X,
   "clarity": X,
   "relevance": X,
   "emotionalBias": X,
-  "summary": "Brief one-line summary"
+  "summary": "Brief one-line summary in English"
 }`;
 
   const userPrompt = `Topic: "${topic}"\n\nArgument:\n"${transcript}"`;

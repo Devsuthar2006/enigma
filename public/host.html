@@ -1200,8 +1200,8 @@
             <div id="legend-weights"></div>
           </div>
           <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
-            <button class="btn btn-primary" onclick="downloadReport('text')">
-              📄 Download Report (TXT)
+            <button class="btn btn-primary" onclick="downloadReport('pdf')">
+              📄 Download Report (PDF)
             </button>
             <button class="btn btn-secondary" onclick="downloadReport('json')">
               📊 Export Data (JSON)
@@ -1289,7 +1289,7 @@
 
     function selectMode(mode) {
       selectedMode = mode;
-      document.querySelectorAll('.mode-option').forEach(el => {
+      document.querySelectorAll('#mode-selector .mode-option').forEach(el => {
         el.classList.toggle('selected', el.dataset.mode === mode);
       });
     }
@@ -1436,6 +1436,7 @@
 
     async function removeParticipant(participantId, name) {
       if (currentState === STATES.RESULTS) return;
+      if (!confirm(`Remove ${name} from the room?`)) return;
       
       try {
         const res = await fetch(`/api/rooms/${roomCode}/remove-participant`, {
@@ -1454,6 +1455,26 @@
         updateUI();
       } catch (e) {
         console.error(e);
+      }
+    }
+
+    async function assignTurnManually(participantId) {
+      if (!roomCode) return;
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/assign-turn`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participantId })
+        });
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.error || 'Failed to assign turn');
+        } else {
+          document.getElementById('status-message').textContent = `✓ Turn manually assigned`;
+          updateUI();
+        }
+      } catch (e) {
+        console.error('Failed to assign turn:', e);
       }
     }
 
@@ -1596,7 +1617,10 @@
                 ${p.responses > 0 ? `<span class="score-badge">—</span>` : '<span style="color:#d1d5db;">--</span>'}
               </td>
               <td>
-                ${showRemove ? `<button class="remove-btn" onclick="removeParticipant('${p.id}', '${p.name}')">✕ Remove</button>` : ''}
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                  ${showRemove && !isTurn && currentState === STATES.COLLECTING ? `<button class="btn btn-primary" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="assignTurnManually('${p.id}')">🎤 Assign</button>` : ''}
+                  ${showRemove ? `<button class="remove-btn" onclick="removeParticipant('${p.id}', '${p.name}')">✕</button>` : ''}
+                </div>
               </td>
             </tr>
           `;
@@ -1657,7 +1681,7 @@
 
       const buttonGroupHTML = `
         <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="downloadReport('text')">📄 Download Report (TXT)</button>
+          <button class="btn btn-primary" onclick="downloadReport('pdf')">📄 Download Report (PDF)</button>
           <button class="btn btn-secondary" onclick="downloadReport('json')">📊 Export Data (JSON)</button>
           <button class="btn" style="background: var(--bg-color); color: var(--text-color); border: 1px solid #ddd;" onclick="startNewRoom()">➕ Start New Room</button>
         </div>
@@ -2333,7 +2357,7 @@
         a.href = downloadUrl;
         a.download = format === 'json' 
           ? `debate-report-${roomCode}.json` 
-          : `debate-report-${roomCode}.txt`;
+          : `debate-report-${roomCode}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
