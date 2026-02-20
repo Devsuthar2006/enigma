@@ -1114,6 +1114,15 @@
             </div>
           </div>
         </div>
+        <div style="margin-bottom: 2rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">TIME LIMIT</label>
+          <select id="time-limit" style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 1rem;">
+            <option value="15">15 Seconds (Blitz)</option>
+            <option value="30" selected>30 Seconds (Standard)</option>
+            <option value="60">60 Seconds (Deep Dive)</option>
+            <option value="90">90 Seconds (Extended)</option>
+          </select>
+        </div>
         <button class="btn btn-primary" style="width: 100%;" onclick="createRoom()">Create Room</button>
       </div>
 
@@ -1296,13 +1305,14 @@
 
     async function createRoom() {
       const topic = document.getElementById('topic').value;
+      const timeLimit = document.getElementById('time-limit').value;
       if (!topic) return alert('Please enter a topic');
 
       try {
         const res = await fetch('/api/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic, mode: selectedMode })
+          body: JSON.stringify({ topic, mode: selectedMode, timeLimit })
         });
         const data = await res.json();
         

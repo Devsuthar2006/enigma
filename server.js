@@ -278,12 +278,14 @@ app.post('/api/rooms', async (req, res) => {
   }
 
   const selectedMode = VALID_MODES.includes(mode) ? mode : 'debate';
+  const timeLimitInt = parseInt(req.body.timeLimit) || 30; // Default 30s
   const roomCode = generateRoomCode();
   const hostId = uuidv4();
 
   const roomData = {
     topic: topic.trim(),
     mode: selectedMode,
+    timeLimit: timeLimitInt,
     hostId,
     participants: new Map(),
     currentTurn: null,
@@ -333,6 +335,7 @@ app.get('/api/rooms/:code', async (req, res) => {
     mode: room.mode || 'debate',
     modeLabel: MODE_WEIGHTS[room.mode || 'debate'].label,
     modeWeights: MODE_WEIGHTS[room.mode || 'debate'],
+    timeLimit: room.timeLimit || 30,
     status: room.status,
     locked: room.locked,
     currentRound: room.currentRound,
@@ -881,7 +884,7 @@ app.post('/api/rooms/:code/submit', upload.single('audio'), async (req, res) => 
  */
 app.get('/api/rooms/:code/turn-status', async (req, res) => {
   const roomCode = req.params.code.toUpperCase();
-  const { participantId } = req.query;
+  const participantId = req.query.participantId;
   const room = await getRoom(roomCode);
 
   if (!room) {
@@ -897,7 +900,8 @@ app.get('/api/rooms/:code/turn-status', async (req, res) => {
     isMyTurn,
     currentTurnName,
     currentTurn: room.currentTurn,
-    mode: room.mode || 'debate'
+    mode: room.mode || 'debate',
+    timeLimit: room.timeLimit || 30
   });
 });
 

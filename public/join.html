@@ -495,8 +495,23 @@
       .mic-btn { width: 90px; height: 90px; }
       .mic-btn svg { width: 24px; height: 24px; }
       .timer-text { font-size: 2rem; }
+
+      /* Additional mobile styles */
+      .brand { font-size: 1.25rem; }
+      .join-card { padding: 1.5rem; }
+      .mic-btn { width: 72px; height: 72px; }
+      .mic-btn svg { width: 24px; height: 24px; }
+      .timer-text { font-size: 2rem; }
+    }
+    
+    /* Add a clean export look for Brag Cards */
+    .brag-export {
+      padding: 20px !important;
+      background: linear-gradient(135deg, #111827 0%, #1f2937 100%) !important;
+      border-radius: 12px;
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body class="mobile-dark" style="padding: 0; display: block;">
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -587,6 +602,7 @@
     let pollInterval;
     let lastScore = null;
     let currentMode = 'debate';
+    let currentTimeLimit = 30;
     let handRaised = false;
     
     // Waveform visualization context
@@ -824,9 +840,11 @@
         }
 
         // Skip DOM update if nothing changed
-        const fingerprint = `${data.isMyTurn}-${data.currentTurnName}-${data.status}`;
+        const fingerprint = `${data.isMyTurn}-${data.currentTurnName}-${data.status}-${data.timeLimit}`;
         if (fingerprint === lastTurnStatus) return;
         lastTurnStatus = fingerprint;
+
+        if (data.timeLimit) currentTimeLimit = parseInt(data.timeLimit);
 
         const btn = document.getElementById('record-btn');
         const status = document.getElementById('status-text');
@@ -951,6 +969,7 @@
               <div class="p-metric"><span class="m-label">${mode === 'meeting' ? 'Focus' : 'Bias'}</span><span class="m-value">${scores.emotionalBias || 0}</span></div>
             </div>
             ${responsesHTML}
+            ${isYou ? `<button onclick="exportBragCard(this.parentElement)" class="btn" style="width: 100%; margin-top: 15px; background: linear-gradient(45deg, #ec4899, #8b5cf6); color: white; font-weight: bold;">📸 Share Brag Card</button>` : ''}
           `;
           resultsList.appendChild(card);
         });
@@ -979,8 +998,8 @@
       initWaveform();
 
       // Start timer
-      let timeLeft = 30;
-      document.getElementById('timer').textContent = `00:${timeLeft}`;
+      let timeLeft = currentTimeLimit;
+      document.getElementById('timer').textContent = `00:${timeLeft.toString().padStart(2, '0')}`;
       
       const timerInt = setInterval(() => {
         if (!isRecording) {
@@ -1074,6 +1093,41 @@
       } catch (e) {
         console.error(e);
         alert('Upload failed');
+      }
+    }
+
+    async function exportBragCard(cardElement) {
+      if (!window.html2canvas) {
+        alert("Oops! Share tool is still loading. Try again in a second.");
+        return;
+      }
+      
+      const originalBtn = cardElement.querySelector('button');
+      
+      // Prepare card for export (remove button and add stylish wrapper class)
+      if (originalBtn) originalBtn.style.display = 'none';
+      cardElement.classList.add('brag-export');
+
+      try {
+        const canvas = await html2canvas(cardElement, {
+          backgroundColor: '#111827',
+          scale: 2 // High resolution
+        });
+        
+        // Restore ui
+        if (originalBtn) originalBtn.style.display = 'block';
+        cardElement.classList.remove('brag-export');
+
+        // Download
+        const link = document.createElement('a');
+        link.download = `DebAItor_BragCard_${new Date().getTime()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        console.error("Failed to generate Brag Card", err);
+        // Restore ui on fail
+        if (originalBtn) originalBtn.style.display = 'block';
+        cardElement.classList.remove('brag-export');
       }
     }
   </script>
