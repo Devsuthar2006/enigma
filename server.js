@@ -105,6 +105,40 @@ const STATES = {
   RESULTS: 'results'
 };
 
+// ============ DISCUSSION MODES & WEIGHT MAPPINGS ============
+const VALID_MODES = ['debate', 'classroom', 'panel', 'meeting'];
+
+const MODE_WEIGHTS = {
+  debate: {
+    label: 'Debate',
+    logic: 0.35,
+    clarity: 0.20,
+    relevance: 0.30,
+    emotionalBias: 0.15
+  },
+  classroom: {
+    label: 'Classroom',
+    logic: 0.20,
+    clarity: 0.35,
+    relevance: 0.35,
+    emotionalBias: 0.10
+  },
+  panel: {
+    label: 'Panel Discussion',
+    logic: 0.30,
+    clarity: 0.25,
+    relevance: 0.25,
+    emotionalBias: 0.20
+  },
+  meeting: {
+    label: 'Meeting',
+    logic: 0.25,
+    clarity: 0.30,
+    relevance: 0.35,
+    emotionalBias: 0.10
+  }
+};
+
 // ============ STORAGE HELPERS ============
 // Firestore is the single source of truth when enabled
 // Memory cache is used for performance optimization
@@ -234,17 +268,19 @@ async function addArgumentToRoom(roomCode, participantId, argumentData) {
  * Create a new room
  */
 app.post('/api/rooms', async (req, res) => {
-  const { topic } = req.body;
+  const { topic, mode } = req.body;
   
   if (!topic || topic.trim().length === 0) {
     return res.status(400).json({ error: 'Topic is required' });
   }
 
+  const selectedMode = VALID_MODES.includes(mode) ? mode : 'debate';
   const roomCode = generateRoomCode();
   const hostId = uuidv4();
 
   const roomData = {
     topic: topic.trim(),
+    mode: selectedMode,
     hostId,
     participants: new Map(),
     currentTurn: null,
@@ -258,8 +294,8 @@ app.post('/api/rooms', async (req, res) => {
   // Save to storage
   await saveRoom(roomCode, roomData);
 
-  console.log(`Room created: ${roomCode} - "${topic}" (Host: ${hostId})`);
-  res.json({ roomCode, topic, hostId });
+  console.log(`Room created: ${roomCode} - "${topic}" [${MODE_WEIGHTS[selectedMode].label}] (Host: ${hostId})`);
+  res.json({ roomCode, topic, hostId, mode: selectedMode, modeLabel: MODE_WEIGHTS[selectedMode].label });
 });
 
 /**
@@ -290,6 +326,9 @@ app.get('/api/rooms/:code', async (req, res) => {
   res.json({
     roomCode,
     topic: room.topic,
+    mode: room.mode || 'debate',
+    modeLabel: MODE_WEIGHTS[room.mode || 'debate'].label,
+    modeWeights: MODE_WEIGHTS[room.mode || 'debate'],
     status: room.status,
     locked: room.locked,
     currentRound: room.currentRound,
@@ -554,7 +593,9 @@ app.post('/api/rooms/:code/end', async (req, res) => {
 
   console.log(`Debate ended in ${roomCode}. Evaluating submissions...`);
 
-  // Calculate results
+  // Calculate results with mode-specific weights
+  const roomMode = room.mode || 'debate';
+  const weights = MODE_WEIGHTS[roomMode];
   const results = [];
 
   for (const [id, data] of room.participants) {
@@ -569,6 +610,7 @@ app.post('/api/rooms/:code/end', async (req, res) => {
         participationStatus: 'silent',
         totalResponses: 0,
         averageScore: 0,
+        rawAverageScore: 0,
         responses: []
       });
       continue;
@@ -579,7 +621,10 @@ app.post('/api/rooms/:code/end', async (req, res) => {
     const avgRelevance = data.responses.reduce((sum, r) => sum + (r.scores?.relevance || 5), 0) / argumentsCount;
     const avgEmotionalBias = data.responses.reduce((sum, r) => sum + (r.scores?.emotionalBias || 5), 0) / argumentsCount;
     
-    const averageScore = (avgLogic * 0.35) + (avgClarity * 0.25) + (avgRelevance * 0.30) + ((10 - avgEmotionalBias) * 0.10);
+    // Raw score (simple average of all 4 dimensions)
+    const rawAverageScore = (avgLogic + avgClarity + avgRelevance + (10 - avgEmotionalBias)) / 4;
+    // Weighted score using mode-specific weights
+    const averageScore = calculateFinalScore({ logic: avgLogic, clarity: avgClarity, relevance: avgRelevance, emotionalBias: avgEmotionalBias }, roomMode);
     const lastSummary = data.responses.length > 0 ? data.responses[data.responses.length - 1].scores?.summary : null;
 
     results.push({
@@ -594,6 +639,7 @@ app.post('/api/rooms/:code/end', async (req, res) => {
         relevance: Math.round(avgRelevance * 10) / 10,
         emotionalBias: Math.round(avgEmotionalBias * 10) / 10
       },
+      rawAverageScore: Math.round(rawAverageScore * 10) / 10,
       averageScore: Math.round(averageScore * 10) / 10,
       summary: lastSummary,
       responses: data.responses
@@ -609,6 +655,8 @@ app.post('/api/rooms/:code/end', async (req, res) => {
       evaluationScores: results.map(r => ({ id: r.id, score: r.averageScore })),
       summaries: results.map(r => ({ id: r.id, name: r.name, summary: r.summary })),
       overallSummary: `Winner: ${results[0]?.name || 'N/A'}`,
+      mode: roomMode,
+      modeWeights: weights,
       results
     });
   }
@@ -621,9 +669,9 @@ app.post('/api/rooms/:code/end', async (req, res) => {
     memoryRooms.get(roomCode).status = STATES.RESULTS;
   }
 
-  console.log(`Results ready for ${roomCode}`);
+  console.log(`Results ready for ${roomCode} [${MODE_WEIGHTS[roomMode].label} mode]`);
 
-  res.json({ roomCode, topic: room.topic, results });
+  res.json({ roomCode, topic: room.topic, mode: roomMode, modeLabel: MODE_WEIGHTS[roomMode].label, modeWeights: weights, results });
 });
 
 /**
@@ -664,7 +712,7 @@ app.post('/api/rooms/:code/submit', upload.single('audio'), async (req, res) => 
     if (USE_MOCK_AI) {
       console.log(`[MOCK] Processing for ${participant.name}...`);
       transcript = getMockTranscript();
-      evaluation = getMockEvaluation();
+      evaluation = getMockEvaluation(room.mode || 'debate');
     } else {
       console.log(`Transcribing audio for ${participant.name}...`);
       
@@ -679,7 +727,7 @@ app.post('/api/rooms/:code/submit', upload.single('audio'), async (req, res) => 
       console.log(`Transcript: "${transcript.substring(0, 50)}..."`);
 
       console.log(`Evaluating response...`);
-      evaluation = await evaluateResponse(room.topic, transcript);
+      evaluation = await evaluateResponse(room.topic, transcript, room.mode || 'debate');
     }
 
     const argumentData = {
@@ -758,12 +806,14 @@ app.get('/api/rooms/:code/results', async (req, res) => {
     }
   }
 
-  // Calculate results from participants
+  // Calculate results from participants using mode-specific weights
+  const roomMode = room.mode || 'debate';
+  const weights = MODE_WEIGHTS[roomMode];
   const results = [];
 
   for (const [id, data] of room.participants) {
     if (!data.responses || data.responses.length === 0) {
-      results.push({ id, name: data.name, totalResponses: 0, averageScore: 0, responses: [] });
+      results.push({ id, name: data.name, totalResponses: 0, averageScore: 0, rawAverageScore: 0, responses: [] });
       continue;
     }
 
@@ -772,7 +822,8 @@ app.get('/api/rooms/:code/results', async (req, res) => {
     const avgRelevance = data.responses.reduce((sum, r) => sum + (r.scores?.relevance || 0), 0) / data.responses.length;
     const avgEmotionalBias = data.responses.reduce((sum, r) => sum + (r.scores?.emotionalBias || 0), 0) / data.responses.length;
     
-    const averageScore = (avgLogic * 0.35 + avgClarity * 0.25 + avgRelevance * 0.3 + (10 - avgEmotionalBias) * 0.1);
+    const rawAverageScore = (avgLogic + avgClarity + avgRelevance + (10 - avgEmotionalBias)) / 4;
+    const averageScore = calculateFinalScore({ logic: avgLogic, clarity: avgClarity, relevance: avgRelevance, emotionalBias: avgEmotionalBias }, roomMode);
 
     results.push({
       id,
@@ -784,6 +835,7 @@ app.get('/api/rooms/:code/results', async (req, res) => {
         relevance: Math.round(avgRelevance * 10) / 10,
         emotionalBias: Math.round(avgEmotionalBias * 10) / 10
       },
+      rawAverageScore: Math.round(rawAverageScore * 10) / 10,
       averageScore: Math.round(averageScore * 10) / 10,
       responses: data.responses
     });
@@ -792,7 +844,7 @@ app.get('/api/rooms/:code/results', async (req, res) => {
   results.sort((a, b) => b.averageScore - a.averageScore);
   results.forEach((r, i) => { r.rank = i + 1; });
 
-  res.json({ roomCode, topic: room.topic, results });
+  res.json({ roomCode, topic: room.topic, mode: roomMode, modeLabel: MODE_WEIGHTS[roomMode].label, modeWeights: weights, results });
 });
 
 /**
@@ -832,7 +884,8 @@ app.get('/api/rooms/:code/report', async (req, res) => {
       const avgClarity = data.responses.reduce((sum, r) => sum + (r.scores?.clarity || 0), 0) / data.responses.length;
       const avgRelevance = data.responses.reduce((sum, r) => sum + (r.scores?.relevance || 0), 0) / data.responses.length;
       const avgEmotionalBias = data.responses.reduce((sum, r) => sum + (r.scores?.emotionalBias || 0), 0) / data.responses.length;
-      const averageScore = (avgLogic * 0.35 + avgClarity * 0.25 + avgRelevance * 0.3 + (10 - avgEmotionalBias) * 0.1);
+      const reportMode = room.mode || 'debate';
+      const averageScore = calculateFinalScore({ logic: avgLogic, clarity: avgClarity, relevance: avgRelevance, emotionalBias: avgEmotionalBias }, reportMode);
 
       results.push({
         id,
@@ -861,6 +914,9 @@ app.get('/api/rooms/:code/report', async (req, res) => {
       exportedAt: new Date().toISOString(),
       roomCode,
       topic: room.topic,
+      mode: room.mode || 'debate',
+      modeLabel: MODE_WEIGHTS[room.mode || 'debate'].label,
+      modeWeights: MODE_WEIGHTS[room.mode || 'debate'],
       totalRounds: room.currentRound,
       participants: results
     });
@@ -878,6 +934,7 @@ app.get('/api/rooms/:code/report', async (req, res) => {
 Report Generated: ${reportDate}
 Room Code: ${roomCode}
 Topic: ${room.topic}
+Mode: ${MODE_WEIGHTS[room.mode || 'debate'].label}
 Total Rounds: ${room.currentRound}
 Total Participants: ${results.length}
 
@@ -970,12 +1027,13 @@ AI Feedback: ${response.feedback || 'No feedback available'}
 
 // ============ AI EVALUATION ============
 
-function calculateFinalScore(scores) {
+function calculateFinalScore(scores, mode = 'debate') {
   const { logic, clarity, relevance, emotionalBias } = scores;
-  return Math.round(((logic * 0.35) + (clarity * 0.25) + (relevance * 0.30) + ((10 - emotionalBias) * 0.10)) * 10) / 10;
+  const w = MODE_WEIGHTS[mode] || MODE_WEIGHTS.debate;
+  return Math.round(((logic * w.logic) + (clarity * w.clarity) + (relevance * w.relevance) + ((10 - emotionalBias) * w.emotionalBias)) * 10) / 10;
 }
 
-async function evaluateResponse(topic, transcript) {
+async function evaluateResponse(topic, transcript, mode = 'debate') {
   const systemPrompt = `You are an impartial discussion evaluator.
 
 Task:
@@ -1017,12 +1075,12 @@ Return ONLY a valid JSON object:
     }
 
     const scores = JSON.parse(jsonMatch[0]);
-    scores.finalScore = calculateFinalScore(scores);
+    scores.finalScore = calculateFinalScore(scores, mode);
     
     return scores;
   } catch (error) {
     console.error('AI evaluation error:', error.message);
-    return getMockEvaluation();
+    return getMockEvaluation(mode);
   }
 }
 
@@ -1045,13 +1103,13 @@ function getMockTranscript() {
   return MOCK_TRANSCRIPTS[Math.floor(Math.random() * MOCK_TRANSCRIPTS.length)];
 }
 
-function getMockEvaluation() {
+function getMockEvaluation(mode = 'debate') {
   const logic = Math.floor(Math.random() * 4) + 5;
   const clarity = Math.floor(Math.random() * 4) + 5;
   const relevance = Math.floor(Math.random() * 4) + 5;
   const emotionalBias = Math.floor(Math.random() * 5) + 2;
   const summary = MOCK_SUMMARIES[Math.floor(Math.random() * MOCK_SUMMARIES.length)];
-  const finalScore = calculateFinalScore({ logic, clarity, relevance, emotionalBias });
+  const finalScore = calculateFinalScore({ logic, clarity, relevance, emotionalBias }, mode);
   return { logic, clarity, relevance, emotionalBias, summary, finalScore };
 }
 

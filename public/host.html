@@ -265,6 +265,90 @@
         padding: 0.4rem 0.8rem;
       }
     }
+    /* Mode Selector */
+    .mode-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .mode-option {
+      background: #f8f9fa;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      padding: 0.75rem 0.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .mode-option:hover {
+      border-color: var(--accent);
+      background: #f0eeff;
+    }
+    .mode-option.selected {
+      border-color: var(--accent);
+      background: #f0eeff;
+      color: var(--accent);
+    }
+    .mode-option .mode-icon {
+      font-size: 1.25rem;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 50px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      background: #f0eeff;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .weight-legend {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      font-size: 0.8rem;
+    }
+    .weight-legend h5 {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.75rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .weight-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.25rem 0;
+    }
+    .weight-bar {
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+      flex: 1;
+      margin: 0 0.5rem;
+    }
+    .weight-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+    .raw-score {
+      font-size: 0.75rem;
+      color: #999;
+      text-align: center;
+      margin-top: -0.5rem;
+      margin-bottom: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -277,9 +361,26 @@
       
       <!-- Setup Phase -->
       <div id="setup-panel">
-        <div style="margin-bottom: 2rem;">
+        <div style="margin-bottom: 1.5rem;">
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">TOPIC</label>
           <input type="text" id="topic" placeholder="Values vs Facts...">
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">MODE</label>
+          <div class="mode-selector" id="mode-selector">
+            <div class="mode-option selected" data-mode="debate" onclick="selectMode('debate')">
+              <span class="mode-icon">⚔️</span> Debate
+            </div>
+            <div class="mode-option" data-mode="classroom" onclick="selectMode('classroom')">
+              <span class="mode-icon">📚</span> Classroom
+            </div>
+            <div class="mode-option" data-mode="panel" onclick="selectMode('panel')">
+              <span class="mode-icon">🎙️</span> Panel
+            </div>
+            <div class="mode-option" data-mode="meeting" onclick="selectMode('meeting')">
+              <span class="mode-icon">💼</span> Meeting
+            </div>
+          </div>
         </div>
         <button class="btn btn-primary" style="width: 100%;" onclick="createRoom()">Create Room</button>
       </div>
@@ -319,6 +420,7 @@
               <span class="state-dot"></span>
               <span id="state-text">WAITING</span>
             </span>
+            <span id="mode-display" class="mode-badge">⚔️ Debate</span>
             <span style="color: #888;">Round <span id="round-display">1</span></span>
           </div>
         </div>
@@ -354,6 +456,10 @@
         <div style="text-align: center; margin: 2rem 0;">
           <h2 style="color: var(--accent);">🏆 RESULTS READY</h2>
           <p style="color: #666;">Final evaluation based on Logic, Clarity, Relevance, and Emotional Bias.</p>
+          <div id="mode-weight-legend" class="weight-legend hidden">
+            <h5>📊 Weight Profile: <span id="legend-mode-name">Debate</span></h5>
+            <div id="legend-weights"></div>
+          </div>
           <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="downloadReport('text')">
               📄 Download Report (TXT)
@@ -391,6 +497,17 @@
     let pollInterval;
     let currentState = STATES.WAITING;
     let isLocked = false;
+    let selectedMode = 'debate';
+    let currentModeWeights = null;
+
+    const MODE_ICONS = { debate: '⚔️', classroom: '📚', panel: '🎙️', meeting: '💼' };
+
+    function selectMode(mode) {
+      selectedMode = mode;
+      document.querySelectorAll('.mode-option').forEach(el => {
+        el.classList.toggle('selected', el.dataset.mode === mode);
+      });
+    }
 
     async function createRoom() {
       const topic = document.getElementById('topic').value;
@@ -400,7 +517,7 @@
         const res = await fetch('/api/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic })
+          body: JSON.stringify({ topic, mode: selectedMode })
         });
         const data = await res.json();
         
@@ -419,6 +536,8 @@
         
         document.getElementById('display-topic').textContent = data.topic;
         document.getElementById('room-code').textContent = roomCode;
+        document.getElementById('mode-display').innerHTML = `${MODE_ICONS[data.mode] || '⚔️'} ${data.modeLabel}`;
+        currentModeWeights = null; // will be fetched from server
 
         // Generate QR
         new QRCode(document.getElementById("qrcode"), {
@@ -601,7 +720,7 @@
       document.getElementById('status-message').style.color = 'var(--success)';
       
       clearInterval(pollInterval);
-      showFinalResults(data.results);
+      showFinalResults(data.results, data.modeWeights, data.modeLabel);
     }
 
     function startPolling() {
@@ -619,6 +738,11 @@
         document.getElementById('round-display').textContent = data.currentRound || 1;
         document.getElementById('participant-count').textContent = `${data.participants.length} participant${data.participants.length !== 1 ? 's' : ''}`;
         
+        // Sync mode display
+        if (data.mode) {
+          document.getElementById('mode-display').innerHTML = `${MODE_ICONS[data.mode] || '⚔️'} ${data.modeLabel}`;
+          currentModeWeights = data.modeWeights;
+        }
         // Sync state from server
         if (data.status !== currentState) {
           updateState(data.status);
@@ -676,13 +800,37 @@
       try {
         const res = await fetch(`/api/rooms/${roomCode}/results`);
         const data = await res.json();
-        showFinalResults(data.results);
+        showFinalResults(data.results, data.modeWeights, data.modeLabel);
       } catch (e) {
         console.error('Error fetching results:', e);
       }
     }
 
-    function showFinalResults(results) {
+    function showWeightLegend(weights, label) {
+      if (!weights) return;
+      const legend = document.getElementById('mode-weight-legend');
+      const nameEl = document.getElementById('legend-mode-name');
+      const weightsEl = document.getElementById('legend-weights');
+      
+      nameEl.textContent = label || 'Debate';
+      const items = [
+        { name: 'Logic', key: 'logic' },
+        { name: 'Clarity', key: 'clarity' },
+        { name: 'Relevance', key: 'relevance' },
+        { name: 'Emotional Bias', key: 'emotionalBias' }
+      ];
+      weightsEl.innerHTML = items.map(item => `
+        <div class="weight-item">
+          <span style="min-width: 90px;">${item.name}</span>
+          <div class="weight-bar"><div class="weight-bar-fill" style="width: ${weights[item.key] * 100}%"></div></div>
+          <span style="font-weight: 600; min-width: 35px; text-align: right;">${Math.round(weights[item.key] * 100)}%</span>
+        </div>
+      `).join('');
+      legend.classList.remove('hidden');
+    }
+
+    function showFinalResults(results, modeWeights, modeLabel) {
+      showWeightLegend(modeWeights, modeLabel);
       const list = document.getElementById('participant-list');
       const metricsContainer = document.getElementById('metrics-container');
       list.innerHTML = '';
@@ -713,11 +861,17 @@
         `;
         list.appendChild(row);
         
-        // Metric card (detailed view) - matches reference design
+        // Metric card (detailed view)
         const scores = p.averageScores || {};
         const isWinner = p.rank === 1;
         const card = document.createElement('div');
         card.className = `metric-card ${isWinner ? 'winner' : ''}`;
+        
+        // Show weight percentages next to score labels if we have weights
+        const wLogic = modeWeights ? ` (${Math.round(modeWeights.logic * 100)}%)` : '';
+        const wClarity = modeWeights ? ` (${Math.round(modeWeights.clarity * 100)}%)` : '';
+        const wRelevance = modeWeights ? ` (${Math.round(modeWeights.relevance * 100)}%)` : '';
+        const wBias = modeWeights ? ` (${Math.round(modeWeights.emotionalBias * 100)}%)` : '';
         
         // Build responses HTML
         let responsesHTML = '';
@@ -746,22 +900,23 @@
             ${isWinner ? '<span class="winner-badge">🏆 WINNER</span>' : ''}
           </h4>
           <div class="overall-score">${p.averageScore || '--'}</div>
+          ${p.rawAverageScore !== undefined ? `<div class="raw-score">Raw: ${p.rawAverageScore}/10</div>` : ''}
           
           <div class="scores-grid">
             <div class="score-item">
-              <span class="label">Logic</span>
+              <span class="label">Logic${wLogic}</span>
               <span class="value">${scores.logic || 0}/10</span>
             </div>
             <div class="score-item">
-              <span class="label">Clarity</span>
+              <span class="label">Clarity${wClarity}</span>
               <span class="value">${scores.clarity || 0}/10</span>
             </div>
             <div class="score-item">
-              <span class="label">Relevance</span>
+              <span class="label">Relevance${wRelevance}</span>
               <span class="value">${scores.relevance || 0}/10</span>
             </div>
             <div class="score-item">
-              <span class="label">Emotional Bias</span>
+              <span class="label">Emot. Bias${wBias}</span>
               <span class="value">${scores.emotionalBias || 0}/10</span>
             </div>
           </div>
@@ -850,6 +1005,12 @@
           document.getElementById('display-topic').textContent = data.topic;
           document.getElementById('room-code').textContent = roomCode;
           
+          // Restore mode display
+          if (data.mode) {
+            document.getElementById('mode-display').innerHTML = `${MODE_ICONS[data.mode] || '⚔️'} ${data.modeLabel}`;
+            currentModeWeights = data.modeWeights;
+          }
+          
           // Generate QR
           document.getElementById('qrcode').innerHTML = '';
           new QRCode(document.getElementById("qrcode"), {
@@ -871,7 +1032,7 @@
           } else if (data.status === 'results') {
             updateState(STATES.RESULTS);
             // Load results
-            loadResults();
+            fetchFinalResults();
           }
           
           // Start polling

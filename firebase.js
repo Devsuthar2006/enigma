@@ -57,6 +57,7 @@ async function createRoom(roomCode, data) {
   try {
     await db.collection('rooms').doc(roomCode).set({
       topic: data.topic,
+      mode: data.mode || 'debate',
       hostId: data.hostId,
       status: data.status,
       locked: data.locked,
