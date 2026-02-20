@@ -1124,6 +1124,180 @@ app.get('/api/rooms/:code/analytics', async (req, res) => {
   });
 });
 
+// ============ MODERATOR INSIGHTS ============
+
+/**
+ * Get moderator insights for a room
+ * Analyzes stored evaluation data to detect patterns
+ */
+app.get('/api/rooms/:code/insights', async (req, res) => {
+  const roomCode = req.params.code.toUpperCase();
+  const room = await getRoom(roomCode);
+
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+
+  const participantCount = room.participants.size;
+  const insights = [];
+
+  if (participantCount === 0) {
+    return res.json({ roomCode, insights: [{ type: 'info', icon: 'ℹ️', title: 'No Data', message: 'No participants have joined yet.' }] });
+  }
+
+  // Gather data
+  let totalArguments = 0;
+  const participantData = [];
+
+  for (const [id, data] of room.participants) {
+    const responses = data.responses || [];
+    const argCount = responses.length;
+    totalArguments += argCount;
+
+    // Compute per-participant averages from stored scores
+    let avgRelevance = 0, avgClarity = 0, avgLogic = 0, avgEmotionalBias = 0;
+    if (argCount > 0) {
+      avgRelevance = responses.reduce((s, r) => s + (r.scores?.relevance || 0), 0) / argCount;
+      avgClarity = responses.reduce((s, r) => s + (r.scores?.clarity || 0), 0) / argCount;
+      avgLogic = responses.reduce((s, r) => s + (r.scores?.logic || 0), 0) / argCount;
+      avgEmotionalBias = responses.reduce((s, r) => s + (r.scores?.emotionalBias || 0), 0) / argCount;
+    }
+
+    participantData.push({
+      name: data.name,
+      argCount,
+      avgRelevance: Math.round(avgRelevance * 10) / 10,
+      avgClarity: Math.round(avgClarity * 10) / 10,
+      avgLogic: Math.round(avgLogic * 10) / 10,
+      avgEmotionalBias: Math.round(avgEmotionalBias * 10) / 10,
+      avgScore: argCount > 0 ? Math.round(((avgLogic + avgClarity + avgRelevance + (10 - avgEmotionalBias)) / 4) * 10) / 10 : 0
+    });
+  }
+
+  // ── Insight 1: Dominance Detection ──
+  if (totalArguments > 0) {
+    participantData.forEach(p => {
+      const pct = (p.argCount / totalArguments) * 100;
+      if (pct > 50 && participantCount > 1) {
+        insights.push({
+          type: 'warning',
+          icon: '👑',
+          title: 'Dominance Detected',
+          message: `${p.name} contributed ${Math.round(pct)}% of all arguments. Consider encouraging others to participate more.`,
+          metric: `${Math.round(pct)}%`,
+          metricLabel: 'Share'
+        });
+      }
+    });
+  }
+
+  // ── Insight 2: Low Engagement ──
+  if (totalArguments < participantCount && room.status !== STATES.WAITING) {
+    insights.push({
+      type: 'warning',
+      icon: '📉',
+      title: 'Low Engagement',
+      message: `Only ${totalArguments} argument${totalArguments !== 1 ? 's' : ''} submitted across ${participantCount} participants. Average is below 1 per person.`,
+      metric: totalArguments,
+      metricLabel: 'Total Args'
+    });
+  }
+
+  // ── Insight 3: Silent Participants ──
+  const silentNames = participantData.filter(p => p.argCount === 0).map(p => p.name);
+  if (silentNames.length > 0 && room.status !== STATES.WAITING) {
+    insights.push({
+      type: 'danger',
+      icon: '🔇',
+      title: 'Silent Participants',
+      message: `${silentNames.join(', ')} ${silentNames.length === 1 ? 'has' : 'have'} not submitted any arguments.`,
+      metric: silentNames.length,
+      metricLabel: 'Silent'
+    });
+  }
+
+  // ── Insight 4: Low Relevance ──
+  const activeParticipants = participantData.filter(p => p.argCount > 0);
+  if (activeParticipants.length > 0) {
+    const avgGroupRelevance = activeParticipants.reduce((s, p) => s + p.avgRelevance, 0) / activeParticipants.length;
+    if (avgGroupRelevance < 5 && avgGroupRelevance > 0) {
+      insights.push({
+        type: 'warning',
+        icon: '🎯',
+        title: 'Low Relevance',
+        message: `The group's average relevance score is ${Math.round(avgGroupRelevance * 10) / 10}/10. Arguments may be drifting off-topic.`,
+        metric: `${Math.round(avgGroupRelevance * 10) / 10}/10`,
+        metricLabel: 'Avg Relevance'
+      });
+    }
+
+    // ── Insight 5: High Emotional Bias ──
+    const avgGroupBias = activeParticipants.reduce((s, p) => s + p.avgEmotionalBias, 0) / activeParticipants.length;
+    if (avgGroupBias > 6) {
+      insights.push({
+        type: 'warning',
+        icon: '🔥',
+        title: 'High Emotional Bias',
+        message: `The group's average emotional bias is ${Math.round(avgGroupBias * 10) / 10}/10. Discussion may benefit from more objective reasoning.`,
+        metric: `${Math.round(avgGroupBias * 10) / 10}/10`,
+        metricLabel: 'Avg Bias'
+      });
+    }
+
+    // ── Insight 6: Low Clarity ──
+    const avgGroupClarity = activeParticipants.reduce((s, p) => s + p.avgClarity, 0) / activeParticipants.length;
+    if (avgGroupClarity < 5 && avgGroupClarity > 0) {
+      insights.push({
+        type: 'warning',
+        icon: '💬',
+        title: 'Low Clarity',
+        message: `The group's average clarity score is ${Math.round(avgGroupClarity * 10) / 10}/10. Participants may need to articulate their points more clearly.`,
+        metric: `${Math.round(avgGroupClarity * 10) / 10}/10`,
+        metricLabel: 'Avg Clarity'
+      });
+    }
+
+    // ── Insight 7: Score Disparity ──
+    if (activeParticipants.length > 1) {
+      const scores = activeParticipants.map(p => p.avgScore);
+      const maxScore = Math.max(...scores);
+      const minScore = Math.min(...scores);
+      const gap = Math.round((maxScore - minScore) * 10) / 10;
+      if (gap > 3) {
+        const topName = activeParticipants.find(p => p.avgScore === maxScore)?.name;
+        const bottomName = activeParticipants.find(p => p.avgScore === minScore)?.name;
+        insights.push({
+          type: 'info',
+          icon: '📊',
+          title: 'Score Disparity',
+          message: `There is a ${gap}-point gap between ${topName} (${maxScore}) and ${bottomName} (${minScore}). Consider reviewing argument quality differences.`,
+          metric: gap,
+          metricLabel: 'Point Gap'
+        });
+      }
+    }
+  }
+
+  // ── Positive Insight: Strong Discussion ──
+  if (insights.length === 0 && totalArguments > 0) {
+    insights.push({
+      type: 'success',
+      icon: '✅',
+      title: 'Strong Discussion',
+      message: 'No significant issues detected. The discussion appears balanced, relevant, and well-engaged.',
+      metric: '👍',
+      metricLabel: 'All Good'
+    });
+  }
+
+  res.json({
+    roomCode,
+    topic: room.topic,
+    totalInsights: insights.length,
+    insights
+  });
+});
+
 // ============ AI EVALUATION ============
 
 function calculateFinalScore(scores, mode = 'debate') {

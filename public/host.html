@@ -485,6 +485,84 @@
       color: #c62828;
       border: 1px solid #ffcdd2;
     }
+    /* Insight Cards */
+    .insight-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      background: white;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-left: 4px solid #eee;
+      transition: transform 0.15s;
+    }
+    .insight-card:hover {
+      transform: translateX(4px);
+    }
+    .insight-card.warning { border-left-color: #e65100; }
+    .insight-card.danger { border-left-color: #c62828; }
+    .insight-card.info { border-left-color: var(--accent); }
+    .insight-card.success { border-left-color: #2e7d32; }
+    .insight-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      background: #f8f9fa;
+    }
+    .insight-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .insight-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+      color: #333;
+    }
+    .insight-message {
+      font-size: 0.8rem;
+      color: #666;
+      line-height: 1.5;
+    }
+    .insight-metric {
+      text-align: center;
+      flex-shrink: 0;
+      padding-left: 1rem;
+    }
+    .insight-metric .metric-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #333;
+    }
+    .insight-metric .metric-lbl {
+      font-size: 0.6rem;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .insights-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #999;
+      font-size: 0.9rem;
+    }
+    .insight-count-badge {
+      background: var(--accent);
+      color: white;
+      font-size: 0.6rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 50px;
+      font-weight: 700;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
@@ -610,6 +688,7 @@
         <div class="results-tabs">
           <button class="results-tab active" id="tab-scores" onclick="switchTab('scores')">🎯 Scores</button>
           <button class="results-tab" id="tab-analytics" onclick="switchTab('analytics')">📈 Participation</button>
+          <button class="results-tab" id="tab-insights" onclick="switchTab('insights')">🧠 Insights <span id="insights-count-badge" class="insight-count-badge hidden">0</span></button>
         </div>
 
         <!-- Scores Tab Content -->
@@ -641,6 +720,13 @@
                 <!-- Rows injected here -->
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Insights Tab Content -->
+        <div id="tab-insights-content" class="hidden">
+          <div id="insights-container">
+            <div class="insights-empty">Loading insights...</div>
           </div>
         </div>
       </div>
@@ -1002,8 +1088,9 @@
 
     function showFinalResults(results, modeWeights, modeLabel) {
       showWeightLegend(modeWeights, modeLabel);
-      // Auto-fetch analytics when results are shown
+      // Auto-fetch analytics and insights when results are shown
       fetchAnalytics();
+      fetchInsights();
       const list = document.getElementById('participant-list');
       const metricsContainer = document.getElementById('metrics-container');
       list.innerHTML = '';
@@ -1140,10 +1227,10 @@
     // ============ TAB SWITCHING ============
 
     function switchTab(tab) {
-      document.getElementById('tab-scores').classList.toggle('active', tab === 'scores');
-      document.getElementById('tab-analytics').classList.toggle('active', tab === 'analytics');
-      document.getElementById('tab-scores-content').classList.toggle('hidden', tab !== 'scores');
-      document.getElementById('tab-analytics-content').classList.toggle('hidden', tab !== 'analytics');
+      ['scores', 'analytics', 'insights'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.toggle('active', tab === t);
+        document.getElementById(`tab-${t}-content`).classList.toggle('hidden', tab !== t);
+      });
     }
 
     // ============ PARTICIPATION ANALYTICS ============
@@ -1242,6 +1329,52 @@
           </tr>
         `;
       }).join('');
+    }
+
+    // ============ MODERATOR INSIGHTS ============
+
+    async function fetchInsights() {
+      if (!roomCode) return;
+      try {
+        const res = await fetch(`/api/rooms/${roomCode}/insights`);
+        const data = await res.json();
+        if (!data.error) {
+          renderInsights(data.insights);
+          // Update badge count
+          const badge = document.getElementById('insights-count-badge');
+          if (data.totalInsights > 0) {
+            badge.textContent = data.totalInsights;
+            badge.classList.remove('hidden');
+          }
+        }
+      } catch (e) {
+        console.error('Insights fetch error:', e);
+      }
+    }
+
+    function renderInsights(insights) {
+      const container = document.getElementById('insights-container');
+
+      if (!insights || insights.length === 0) {
+        container.innerHTML = '<div class="insights-empty">No insights available yet.</div>';
+        return;
+      }
+
+      container.innerHTML = insights.map(insight => `
+        <div class="insight-card ${insight.type}">
+          <div class="insight-icon">${insight.icon}</div>
+          <div class="insight-body">
+            <div class="insight-title">${insight.title}</div>
+            <div class="insight-message">${insight.message}</div>
+          </div>
+          ${insight.metric !== undefined ? `
+            <div class="insight-metric">
+              <div class="metric-val">${insight.metric}</div>
+              <div class="metric-lbl">${insight.metricLabel || ''}</div>
+            </div>
+          ` : ''}
+        </div>
+      `).join('');
     }
 
     // Restore session on page load
