@@ -563,6 +563,137 @@
       margin-left: 0.4rem;
       vertical-align: middle;
     }
+    /* ── Classroom Mode ── */
+    .classroom-header {
+      background: linear-gradient(135deg, #e0f2f1 0%, #f1f8e9 100%);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .classroom-header h2 {
+      color: #00695c;
+      margin: 0;
+    }
+    .classroom-header p { color: #558b2f; }
+    .feedback-card {
+      background: white;
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+      border: 1px solid #e8f5e9;
+    }
+    .feedback-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .feedback-card-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #333;
+    }
+    .feedback-card-score {
+      background: #e0f2f1;
+      color: #00695c;
+      font-weight: 700;
+      padding: 0.3rem 0.75rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+    }
+    .feedback-section {
+      margin-bottom: 1rem;
+    }
+    .feedback-section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.5rem;
+    }
+    .feedback-section-title.strengths { color: #2e7d32; }
+    .feedback-section-title.improve { color: #e65100; }
+    .feedback-tag {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin: 0 0.3rem 0.3rem 0;
+    }
+    .feedback-tag.strength {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .feedback-tag.improve {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    .skill-meter {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+    .skill-meter-label {
+      font-size: 0.75rem;
+      color: #666;
+      min-width: 80px;
+    }
+    .skill-meter-bar {
+      flex: 1;
+      height: 6px;
+      background: #f0f0f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .skill-meter-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+    .skill-meter-val {
+      font-size: 0.75rem;
+      font-weight: 700;
+      min-width: 30px;
+      text-align: right;
+    }
+    .classroom-response {
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid #26a69a;
+    }
+    .learning-insights-card {
+      background: linear-gradient(135deg, #e0f2f1 0%, #e8f5e9 100%);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .learning-insights-card h3 {
+      margin: 0 0 1rem 0;
+      color: #00695c;
+      font-size: 1rem;
+    }
+    .learning-point {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      color: #333;
+      line-height: 1.5;
+    }
+    .learning-point-icon {
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
   </style>
 </head>
 <body>
@@ -667,7 +798,7 @@
       
       <!-- Results State -->
       <div id="results-state" class="hidden">
-        <div style="text-align: center; margin: 2rem 0;">
+        <div style="text-align: center; margin: 2rem 0;" id="results-header">
           <h2 style="color: var(--accent);">🏆 RESULTS READY</h2>
           <p style="color: #666;">Final evaluation based on Logic, Clarity, Relevance, and Emotional Bias.</p>
           <div id="mode-weight-legend" class="weight-legend hidden">
@@ -977,7 +1108,7 @@
       document.getElementById('status-message').style.color = 'var(--success)';
       
       clearInterval(pollInterval);
-      showFinalResults(data.results, data.modeWeights, data.modeLabel);
+      showFinalResults(data.results, data.modeWeights, data.modeLabel, data.mode);
     }
 
     function startPolling() {
@@ -1057,7 +1188,7 @@
       try {
         const res = await fetch(`/api/rooms/${roomCode}/results`);
         const data = await res.json();
-        showFinalResults(data.results, data.modeWeights, data.modeLabel);
+        showFinalResults(data.results, data.modeWeights, data.modeLabel, data.mode);
       } catch (e) {
         console.error('Error fetching results:', e);
       }
@@ -1086,11 +1217,37 @@
       legend.classList.remove('hidden');
     }
 
-    function showFinalResults(results, modeWeights, modeLabel) {
+    function showFinalResults(results, modeWeights, modeLabel, mode) {
       showWeightLegend(modeWeights, modeLabel);
       // Auto-fetch analytics and insights when results are shown
       fetchAnalytics();
       fetchInsights();
+
+      // Adapt header for classroom mode
+      const headerEl = document.getElementById('results-header');
+      if (mode === 'classroom') {
+        headerEl.innerHTML = `
+          <div class="classroom-header">
+            <h2>📚 Learning Review</h2>
+            <p>Here\'s how each participant did. Focus on growth and feedback.</p>
+          </div>
+        `;
+      } else {
+        headerEl.innerHTML = `
+          <h2 style="color: var(--accent);">🏆 RESULTS READY</h2>
+          <p style="color: #666;">Final evaluation based on Logic, Clarity, Relevance, and Emotional Bias.</p>
+          <div id="mode-weight-legend" class="weight-legend hidden">
+            <h5>📊 Weight Profile: <span id="legend-mode-name">${modeLabel || 'Debate'}</span></h5>
+            <div id="legend-weights"></div>
+          </div>
+          <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="downloadReport('text')">📄 Download Report (TXT)</button>
+            <button class="btn btn-secondary" onclick="downloadReport('json')">📊 Export Data (JSON)</button>
+          </div>
+        `;
+        showWeightLegend(modeWeights, modeLabel);
+      }
+
       const list = document.getElementById('participant-list');
       const metricsContainer = document.getElementById('metrics-container');
       list.innerHTML = '';
@@ -1100,7 +1257,16 @@
         list.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;">No results available</td></tr>';
         return;
       }
+
+      if (mode === 'classroom') {
+        renderClassroomResults(results, metricsContainer);
+        // Hide leaderboard table in classroom mode
+        list.closest('table').style.display = 'none';
+        return;
+      }
       
+      // ── Default (competitive) mode rendering ──
+      list.closest('table').style.display = '';
       results.forEach(p => {
         const statusClass = p.participationStatus === 'active' ? 'status-active' : 'status-silent';
         const statusLabel = p.participationStatus === 'active' ? 'ACTIVE' : 'SILENT';
@@ -1187,6 +1353,175 @@
         `;
         metricsContainer.appendChild(card);
       });
+    }
+
+    // ── Classroom Mode Renderer ──
+    function getSkillColor(val) {
+      if (val >= 7) return '#2e7d32';
+      if (val >= 5) return '#f57f17';
+      return '#c62828';
+    }
+
+    function deriveStrengths(scores) {
+      const strengths = [];
+      if (scores.logic >= 7) strengths.push('Strong logic');
+      if (scores.clarity >= 7) strengths.push('Clear expression');
+      if (scores.relevance >= 7) strengths.push('Stays on topic');
+      if (scores.emotionalBias <= 3) strengths.push('Objective reasoning');
+      if (strengths.length === 0 && scores.logic >= 5) strengths.push('Adequate reasoning');
+      return strengths;
+    }
+
+    function deriveImprovements(scores) {
+      const improvements = [];
+      if (scores.logic < 5) improvements.push('Strengthen logical structure');
+      if (scores.clarity < 5) improvements.push('Improve clarity of expression');
+      if (scores.relevance < 5) improvements.push('Stay closer to the topic');
+      if (scores.emotionalBias > 6) improvements.push('Reduce emotional bias');
+      if (scores.logic >= 5 && scores.logic < 7) improvements.push('Deepen logical reasoning');
+      if (scores.clarity >= 5 && scores.clarity < 7) improvements.push('Sharpen articulation');
+      return improvements;
+    }
+
+    function renderClassroomResults(results, container) {
+      // Per-participant feedback cards
+      results.forEach(p => {
+        const scores = p.averageScores || {};
+        const strengths = deriveStrengths(scores);
+        const improvements = deriveImprovements(scores);
+
+        const card = document.createElement('div');
+        card.className = 'feedback-card';
+
+        // Build responses for classroom
+        let responsesHTML = '';
+        if (p.responses && p.responses.length > 0) {
+          responsesHTML = p.responses.map(r => `
+            <div class="classroom-response">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                <span style="font-weight: 600; font-size: 0.8rem; color: #00695c;">Round ${r.round}</span>
+                <span style="font-size: 0.75rem; color: #666;">${r.scores.finalScore}/10</span>
+              </div>
+              <p style="color: #666; font-size: 0.8rem; margin: 0; font-style: italic;">💡 ${r.scores.summary || 'No feedback'}</p>
+              ${r.transcript ? `<p style="color: #999; font-size: 0.75rem; margin: 0.4rem 0 0 0;">"${r.transcript}"</p>` : ''}
+            </div>
+          `).join('');
+        }
+
+        card.innerHTML = `
+          <div class="feedback-card-header">
+            <span class="feedback-card-name">${p.name}</span>
+            <span class="feedback-card-score">${p.averageScore || '--'}/10</span>
+          </div>
+
+          <div class="feedback-section">
+            <div class="skill-meter">
+              <span class="skill-meter-label">Logic</span>
+              <div class="skill-meter-bar"><div class="skill-meter-fill" style="width: ${(scores.logic || 0) * 10}%; background: ${getSkillColor(scores.logic || 0)}"></div></div>
+              <span class="skill-meter-val" style="color: ${getSkillColor(scores.logic || 0)}">${scores.logic || 0}</span>
+            </div>
+            <div class="skill-meter">
+              <span class="skill-meter-label">Clarity</span>
+              <div class="skill-meter-bar"><div class="skill-meter-fill" style="width: ${(scores.clarity || 0) * 10}%; background: ${getSkillColor(scores.clarity || 0)}"></div></div>
+              <span class="skill-meter-val" style="color: ${getSkillColor(scores.clarity || 0)}">${scores.clarity || 0}</span>
+            </div>
+            <div class="skill-meter">
+              <span class="skill-meter-label">Relevance</span>
+              <div class="skill-meter-bar"><div class="skill-meter-fill" style="width: ${(scores.relevance || 0) * 10}%; background: ${getSkillColor(scores.relevance || 0)}"></div></div>
+              <span class="skill-meter-val" style="color: ${getSkillColor(scores.relevance || 0)}">${scores.relevance || 0}</span>
+            </div>
+            <div class="skill-meter">
+              <span class="skill-meter-label">Objectivity</span>
+              <div class="skill-meter-bar"><div class="skill-meter-fill" style="width: ${(10 - (scores.emotionalBias || 0)) * 10}%; background: ${getSkillColor(10 - (scores.emotionalBias || 0))}"></div></div>
+              <span class="skill-meter-val" style="color: ${getSkillColor(10 - (scores.emotionalBias || 0))}">${Math.round((10 - (scores.emotionalBias || 0)) * 10) / 10}</span>
+            </div>
+          </div>
+
+          ${strengths.length > 0 ? `
+            <div class="feedback-section">
+              <div class="feedback-section-title strengths">✅ Strengths</div>
+              <div>${strengths.map(s => `<span class="feedback-tag strength">${s}</span>`).join('')}</div>
+            </div>
+          ` : ''}
+
+          ${improvements.length > 0 ? `
+            <div class="feedback-section">
+              <div class="feedback-section-title improve">💡 Areas for Improvement</div>
+              <div>${improvements.map(s => `<span class="feedback-tag improve">${s}</span>`).join('')}</div>
+            </div>
+          ` : ''}
+
+          ${responsesHTML ? `
+            <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e8f5e9;">
+              <p style="color: #888; font-size: 0.75rem; margin-bottom: 0.5rem;">${p.responses.length} response(s)</p>
+              ${responsesHTML}
+            </div>
+          ` : ''}
+
+          ${p.summary ? `<p style="color: #666; font-size: 0.8rem; font-style: italic; margin-top: 0.75rem; padding: 0.5rem; background: #f1f8e9; border-radius: 6px;">"📝 ${p.summary}"</p>` : ''}
+        `;
+        container.appendChild(card);
+      });
+
+      // Learning Insights section
+      const allScores = results.filter(p => p.averageScores).map(p => p.averageScores);
+      if (allScores.length > 0) {
+        const avgLogic = allScores.reduce((s, sc) => s + (sc.logic || 0), 0) / allScores.length;
+        const avgClarity = allScores.reduce((s, sc) => s + (sc.clarity || 0), 0) / allScores.length;
+        const avgRelevance = allScores.reduce((s, sc) => s + (sc.relevance || 0), 0) / allScores.length;
+        const avgBias = allScores.reduce((s, sc) => s + (sc.emotionalBias || 0), 0) / allScores.length;
+
+        const groupStrengths = [];
+        const groupImprovements = [];
+
+        if (avgLogic >= 7) groupStrengths.push('The group demonstrated strong logical reasoning throughout the discussion.');
+        else if (avgLogic >= 5) groupStrengths.push('Arguments were generally well-structured.');
+        else groupImprovements.push('Focus on building more logically structured arguments.');
+
+        if (avgClarity >= 7) groupStrengths.push('Participants expressed their ideas clearly and concisely.');
+        else if (avgClarity < 5) groupImprovements.push('Work on articulating ideas more clearly for the audience.');
+
+        if (avgRelevance >= 7) groupStrengths.push('The discussion stayed well-focused on the topic.');
+        else if (avgRelevance < 5) groupImprovements.push('Try to keep arguments more closely tied to the discussion topic.');
+
+        if (avgBias <= 3) groupStrengths.push('The discussion maintained a high level of objectivity.');
+        else if (avgBias > 6) groupImprovements.push('Consider relying more on evidence and less on emotional appeals.');
+
+        if (results.length > 1) {
+          const scoreRange = Math.max(...results.map(r => r.averageScore || 0)) - Math.min(...results.map(r => r.averageScore || 0));
+          if (scoreRange <= 2) groupStrengths.push('Performance was consistent across participants — great teamwork!');
+          else if (scoreRange > 4) groupImprovements.push('There was a wide gap in performance. Consider peer coaching for next time.');
+        }
+
+        const insightsCard = document.createElement('div');
+        insightsCard.className = 'learning-insights-card';
+        insightsCard.innerHTML = `
+          <h3>🌱 Learning Insights</h3>
+          ${groupStrengths.length > 0 ? `
+            <div style="margin-bottom: 1rem;">
+              <div class="feedback-section-title strengths" style="margin-bottom: 0.5rem;">What went well</div>
+              ${groupStrengths.map(s => `
+                <div class="learning-point">
+                  <span class="learning-point-icon">✅</span>
+                  <span>${s}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${groupImprovements.length > 0 ? `
+            <div>
+              <div class="feedback-section-title improve" style="margin-bottom: 0.5rem;">Opportunities to grow</div>
+              ${groupImprovements.map(s => `
+                <div class="learning-point">
+                  <span class="learning-point-icon">💡</span>
+                  <span>${s}</span>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+        `;
+        container.appendChild(insightsCard);
+      }
     }
 
     // Download report function
