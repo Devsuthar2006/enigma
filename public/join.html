@@ -3,262 +3,486 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join Debate - DebAItor</title>
+  <title>Join Session — DebAItor</title>
+  <meta name="description" content="Join a live discussion session on DebAItor.">
   <link rel="stylesheet" href="styles.css">
-</head>
-<body class="mobile-dark">
+  <style>
+    /* ── Join page enterprise overrides ── */
 
-  <!-- Setup View -->
-  <div id="join-form" class="container" style="height: 100vh; display: flex; flex-direction: column; justify-content: center;">
-    <h1 style="color: white; margin-bottom: 2rem;">JOIN<br>SESSION</h1>
-    <input type="text" id="code-input" placeholder="ROOM CODE" class="hidden" style="background: transparent; border: none; border-bottom: 2px solid #333; color: white; border-radius: 0; padding-left: 0; font-size: 1.5rem; margin-bottom: 1rem; text-transform: uppercase;">
-    <input type="text" id="name" placeholder="YOUR NAME" style="background: transparent; border: none; border-bottom: 2px solid #333; color: white; border-radius: 0; padding-left: 0; font-size: 1.5rem; margin-bottom: 2rem;">
-    <button class="btn btn-accent" style="width: 100%; border-radius: 4px;" onclick="joinRoom()">ENTER ARENA</button>
+    /* Setup / Join Form */
+    .join-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      background: var(--bg-dark);
+    }
+    .join-card {
+      width: 100%;
+      max-width: 380px;
+    }
+    .join-card .brand {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #6b7280;
+      letter-spacing: -0.01em;
+      margin-bottom: 2.5rem;
+    }
+    .join-card .brand span { color: var(--accent); }
+    .join-card h1 {
+      font-size: 1.5rem;
+      color: #fff;
+      margin-bottom: 0.35rem;
+    }
+    .join-card .subtitle {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-bottom: 2rem;
+    }
+    .join-card .field {
+      margin-bottom: 1.25rem;
+    }
+    .join-card label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #9ca3af;
+      display: block;
+      margin-bottom: 0.35rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .join-card input[type="text"] {
+      background: #1f2937;
+      border: 1px solid #374151;
+      color: #fff;
+      padding: 0.75rem 0.85rem;
+      font-size: 0.95rem;
+      border-radius: 6px;
+    }
+    .join-card input[type="text"]:focus {
+      border-color: #6b7280;
+    }
+    .join-card input[type="text"]::placeholder {
+      color: #4b5563;
+    }
+    .join-card .code-input {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 1.25rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .join-card .btn-join {
+      width: 100%;
+      padding: 0.8rem;
+      background: #fff;
+      color: #111827;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: var(--font-stack);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 0.5rem;
+    }
+    .join-card .btn-join:hover { background: #f3f4f6; }
+    .join-card .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.78rem;
+      color: #6b7280;
+      text-decoration: none;
+    }
+    .join-card .back-link:hover { color: #fff; }
+
+    /* ── Active debate interface ── */
+    .debate-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-dark);
+      color: #fff;
+      padding: 1.5rem;
+    }
+    .debate-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #1f2937;
+    }
+    .debate-topbar .topic {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #d1d5db;
+    }
+    .debate-topbar .status-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.25rem 0.65rem;
+      border-radius: 50px;
+      background: #1f2937;
+      color: #6b7280;
+    }
+    .debate-topbar .status-pill.active {
+      background: rgba(37, 99, 235, 0.15);
+      color: #60a5fa;
+    }
+
+    .debate-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem 0;
+    }
+    .mic-btn {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: #1f2937;
+      border: 2px solid #374151;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mic-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .mic-btn:not(:disabled):hover {
+      border-color: #6b7280;
+    }
+    .mic-btn svg {
+      width: 28px;
+      height: 28px;
+      fill: #9ca3af;
+    }
+    .mic-btn.recording {
+      background: var(--accent);
+      border-color: var(--accent);
+      animation: pulse-ring 1.5s infinite;
+    }
+    .mic-btn.recording svg { fill: #fff; }
+
+    .timer-text {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-top: 1.25rem;
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+    }
+    .turn-instruction {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-top: 0.5rem;
+    }
+
+    /* Feedback bar */
+    .feedback-bar {
+      margin-top: auto;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    .feedback-bar .fb-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    .feedback-bar .fb-score {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .feedback-bar .fb-insight {
+      font-size: 0.82rem;
+      color: #9ca3af;
+      margin-top: 0.35rem;
+    }
+
+    /* ── Results view ── */
+    .results-wrapper {
+      min-height: 100vh;
+      background: var(--bg-light);
+      padding: 2rem;
+    }
+    .results-inner {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .results-head {
+      text-align: center;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+    }
+    .results-head h1 {
+      font-size: 1.5rem;
+      color: var(--text-primary);
+      margin-bottom: 0.3rem;
+    }
+    .results-head p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .topic-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.5rem;
+      width: 100%;
+    }
+    .topic-pill .tp-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .topic-pill .tp-text {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Participant result card */
+    .p-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.15s;
+    }
+    .p-card.is-winner { border-color: var(--text-primary); }
+    .p-card.is-you { border-left: 3px solid var(--accent); }
+    .p-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .p-card-rank {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 28px;
+    }
+    .p-card-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      margin-left: 0.75rem;
+    }
+    .p-card-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      margin-left: 0.5rem;
+    }
+    .p-card-badge.you {
+      background: rgba(37, 99, 235, 0.1);
+      color: var(--accent);
+    }
+    .p-card-badge.winner {
+      background: var(--bg-dark);
+      color: #fff;
+    }
+    .p-card-score {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* Metrics row */
+    .p-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;
+    }
+    .p-metric {
+      text-align: center;
+      padding: 0.5rem;
+      background: var(--bg-subtle);
+      border-radius: 6px;
+    }
+    .p-metric .m-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .p-metric .m-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 0.15rem;
+    }
+
+    /* Responses expandable */
+    .p-responses {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .p-responses h4 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.65rem;
+    }
+    .p-response {
+      padding: 0.65rem 0.85rem;
+      background: var(--bg-subtle);
+      border-left: 2px solid var(--border-strong);
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 0.5rem;
+    }
+    .p-response-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.3rem;
+    }
+    .p-response-head .round {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .p-response-head .score {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .p-response .insight {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+    .p-response .transcript {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+      padding-top: 0.3rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .results-back {
+      display: block;
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--bg-dark);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      text-align: center;
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: var(--font-stack);
+      cursor: pointer;
+      margin-top: 1.5rem;
+      transition: background 0.15s;
+    }
+    .results-back:hover { background: #000; }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .join-wrapper { padding: 1.25rem; }
+      .debate-wrapper { padding: 1rem; }
+      .results-wrapper { padding: 1rem; }
+      .p-metrics { grid-template-columns: repeat(2, 1fr); }
+      .mic-btn { width: 90px; height: 90px; }
+      .mic-btn svg { width: 24px; height: 24px; }
+      .timer-text { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body class="mobile-dark" style="padding: 0; display: block;">
+
+  <!-- ═══ JOIN FORM ═══ -->
+  <div id="join-form" class="join-wrapper">
+    <div class="join-card">
+      <div class="brand">DEBAITOR<span>.</span></div>
+      <h1>Join Session</h1>
+      <p class="subtitle">Enter the room code shared by your host.</p>
+
+      <div class="field">
+        <label for="code-input">Room Code</label>
+        <input type="text" id="code-input" class="code-input hidden" placeholder="ABC123" maxlength="6" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="name">Your Name</label>
+        <input type="text" id="name" placeholder="Enter your name" autocomplete="off">
+      </div>
+      <button class="btn-join" onclick="joinRoom()">Join Session</button>
+      <a href="/" class="back-link">← Back to home</a>
+    </div>
   </div>
 
-  <!-- Active Debate View (Hidden) -->
-  <div id="debate-interface" class="hidden" style="height: 100%; display: flex; flex-direction: column;">
-    
-    <header class="mobile-header">
-      <div>
-        <h3 id="topic-display" style="font-size: 1rem; margin: 0; opacity: 0.8;">Topic</h3>
-        <p id="status-text" class="status-indicator">STANDBY</p>
-      </div>
-      <div id="status-dot" style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
-    </header>
+  <!-- ═══ ACTIVE DEBATE ═══ -->
+  <div id="debate-interface" class="hidden debate-wrapper">
+    <div class="debate-topbar">
+      <span class="topic" id="topic-display">Topic</span>
+      <span class="status-pill" id="status-text">STANDBY</span>
+    </div>
 
-    <div class="main-action-area">
-      <!-- Recording Button -->
-      <button id="record-btn" class="record-btn" disabled>
+    <div class="debate-center">
+      <button id="record-btn" class="mic-btn" disabled>
         <svg viewBox="0 0 24 24">
           <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
           <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
         </svg>
       </button>
-
-      <!-- Timer -->
-      <div id="timer" class="timer-display">00:30</div>
-      <p id="instruction" class="instruction-text">Wait for your turn</p>
+      <div id="timer" class="timer-text">00:30</div>
+      <p id="instruction" class="turn-instruction">Wait for your turn</p>
     </div>
 
-    <!-- Results/Feedback Area -->
-    <div id="feedback-area" style="min-height: 100px; padding: 1rem; background: #1a1a1a; border-radius: 8px; margin-top: auto;">
-      <p style="color: #666; font-size: 0.8rem; margin-bottom: 0.5rem;">AI ANALYSIS</p>
-      <div id="latest-score" style="font-size: 1.5rem; font-weight: 700;">--</div>
-      <p id="latest-insight" style="font-size: 0.9rem; color: #aaa; margin-top: 0.5rem;">Scores will appear here after your turn.</p>
+    <div class="feedback-bar" id="feedback-area">
+      <div class="fb-label">AI Analysis</div>
+      <div class="fb-score" id="latest-score">—</div>
+      <div class="fb-insight" id="latest-insight">Scores will appear here after your turn.</div>
     </div>
   </div>
-  
-  <!-- Results View (Hidden) -->
-  <div id="ended-interface" class="hidden" style="min-height: 100vh; background: #0a0a0a; padding: 1rem;">
-    <style>
-      /* Responsive Results Styles */
-      .results-container {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 1rem;
-      }
-      .results-header {
-        text-align: center;
-        padding: 1.5rem 0;
-        border-bottom: 1px solid #222;
-        margin-bottom: 1.5rem;
-      }
-      .results-header h1 {
-        color: white;
-        font-size: 1.75rem;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-      }
-      .topic-display {
-        background: #1a1a1a;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-      }
-      .topic-display span {
-        color: #888;
-        font-size: 0.8rem;
-        display: block;
-        margin-bottom: 0.25rem;
-      }
-      .topic-display p {
-        color: white;
-        font-weight: 600;
-        margin: 0;
-      }
-      .participant-card {
-        background: #1a1a1a;
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        border: 1px solid #222;
-      }
-      .participant-card.winner {
-        border-color: var(--accent);
-        box-shadow: 0 0 20px rgba(108, 99, 255, 0.2);
-      }
-      .participant-card.you {
-        border-color: #4CAF50;
-      }
-      .card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-      }
-      .rank-name {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-      .rank {
-        color: var(--accent);
-        font-size: 1.5rem;
-        font-weight: 700;
-      }
-      .name {
-        color: white;
-        font-weight: 600;
-        font-size: 1.1rem;
-      }
-      .you-badge {
-        background: #4CAF50;
-        color: white;
-        font-size: 0.65rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
-        margin-left: 0.5rem;
-      }
-      .winner-badge {
-        background: linear-gradient(135deg, #FFD700, #FFA500);
-        color: #000;
-        font-size: 0.65rem;
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
-        font-weight: 700;
-      }
-      .score-box {
-        background: #2a2a2a;
-        padding: 0.75rem 1.25rem;
-        border-radius: 8px;
-        text-align: center;
-      }
-      .score-box .value {
-        color: white;
-        font-size: 1.5rem;
-        font-weight: 700;
-      }
-      .metrics-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 0.75rem;
-        margin-top: 1rem;
-      }
-      .metric-item {
-        background: #222;
-        padding: 0.75rem;
-        border-radius: 8px;
-        text-align: center;
-      }
-      .metric-item .label {
-        color: #888;
-        font-size: 0.7rem;
-        display: block;
-        margin-bottom: 0.25rem;
-      }
-      .metric-item .value {
-        color: white;
-        font-size: 1.25rem;
-        font-weight: 700;
-      }
-      .responses-section {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #333;
-      }
-      .responses-section h4 {
-        color: #888;
-        font-size: 0.8rem;
-        margin: 0 0 0.75rem 0;
-      }
-      .response-item {
-        background: #222;
-        padding: 0.75rem;
-        border-radius: 8px;
-        margin-bottom: 0.5rem;
-        border-left: 3px solid var(--accent);
-      }
-      .response-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 0.5rem;
-      }
-      .response-round {
-        color: white;
-        font-weight: 600;
-        font-size: 0.85rem;
-      }
-      .response-score {
-        color: var(--accent);
-        font-weight: 700;
-      }
-      .response-insight {
-        color: #aaa;
-        font-size: 0.8rem;
-        font-style: italic;
-      }
-      .response-transcript {
-        color: #666;
-        font-size: 0.75rem;
-        margin-top: 0.5rem;
-        padding-top: 0.5rem;
-        border-top: 1px solid #333;
-      }
-      .back-btn {
-        display: block;
-        width: 100%;
-        padding: 1rem;
-        background: #1a1a1a;
-        color: white;
-        border: 1px solid #333;
-        border-radius: 8px;
-        text-align: center;
-        text-decoration: none;
-        font-weight: 600;
-        margin-top: 1.5rem;
-      }
-      .back-btn:hover {
-        background: #222;
-      }
-      @media (max-width: 480px) {
-        .results-container { padding: 0.5rem; }
-        .results-header h1 { font-size: 1.4rem; }
-        .participant-card { padding: 1rem; }
-        .metrics-grid { gap: 0.5rem; }
-        .metric-item { padding: 0.5rem; }
-        .metric-item .value { font-size: 1rem; }
-      }
-    </style>
-    
-    <div class="results-container">
-      <div class="results-header">
-        <h1>🏆 Final Results</h1>
+
+  <!-- ═══ RESULTS ═══ -->
+  <div id="ended-interface" class="hidden results-wrapper">
+    <div class="results-inner">
+      <div class="results-head">
+        <h1>Session Results</h1>
+        <p>Final scores and feedback for all participants.</p>
       </div>
-      
-      <div class="topic-display">
-        <span>Topic:</span>
-        <p id="results-topic">Loading...</p>
+
+      <div class="topic-pill">
+        <span class="tp-label">Topic</span>
+        <span class="tp-text" id="results-topic">Loading...</span>
       </div>
-      
-      <div id="results-list">
-        <!-- Participant cards will be injected here -->
-      </div>
-      
-      <a href="/" class="back-btn">Start New Debate</a>
+
+      <div id="results-list"></div>
+
+      <a href="/" class="results-back">← Back to Home</a>
     </div>
   </div>
 
@@ -272,17 +496,15 @@
     let pollInterval;
     let lastScore = null;
 
-    // Handle missing code
+    // Show code input if no code in URL
     if (!roomCode) {
       document.getElementById('code-input').classList.remove('hidden');
     }
 
     async function joinRoom() {
-      // If code was manually entered
       if (!roomCode) {
         roomCode = document.getElementById('code-input').value.toUpperCase();
       }
-
       const name = document.getElementById('name').value;
       if (!roomCode) return alert('Room code required');
       if (!name) return alert('Name required');
@@ -293,87 +515,60 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name })
         });
-        
         const data = await res.json();
         if (data.error) throw new Error(data.error);
 
         participantId = data.participantId;
-        
-        // Save session for refresh restoration
         sessionStorage.setItem('participantId', participantId);
         sessionStorage.setItem('roomCode', roomCode);
         sessionStorage.setItem('participantName', name);
-        
-        // Switch UI
+
         document.getElementById('join-form').classList.add('hidden');
         document.getElementById('debate-interface').classList.remove('hidden');
         document.getElementById('debate-interface').style.display = 'flex';
         document.getElementById('topic-display').textContent = data.topic;
 
-        // Initialize Audio
         await initAudio();
-        
-        // Start Polling
         pollInterval = setInterval(checkStatus, 1000);
-        checkStatus(); // Immediate check
-
+        checkStatus();
       } catch (e) {
         alert(e.message);
       }
     }
-    
+
     // Restore session on page load
     window.onload = async function() {
       const savedParticipantId = sessionStorage.getItem('participantId');
       const savedRoomCode = sessionStorage.getItem('roomCode');
-      
-      // Prefer URL parameter, then session storage
-      if (!roomCode && savedRoomCode) {
-        roomCode = savedRoomCode;
-      }
-      
+      if (!roomCode && savedRoomCode) roomCode = savedRoomCode;
+
       if (savedParticipantId && roomCode) {
         try {
-          // Check if room still exists
           const res = await fetch(`/api/rooms/${roomCode}`);
           if (!res.ok) {
-            console.log('Room not found, clearing session');
             sessionStorage.removeItem('participantId');
             sessionStorage.removeItem('roomCode');
             sessionStorage.removeItem('participantName');
             return;
           }
-          
           const data = await res.json();
-          
-          // Check if participant is still in the room
           const isStillInRoom = data.participants.some(p => p.id === savedParticipantId);
-          
+
           if (isStillInRoom) {
             participantId = savedParticipantId;
-            
-            // Switch UI
             document.getElementById('join-form').classList.add('hidden');
             document.getElementById('debate-interface').classList.remove('hidden');
             document.getElementById('debate-interface').style.display = 'flex';
             document.getElementById('topic-display').textContent = data.topic;
-            
-            // Check if debate has ended
+
             if (data.status === 'results' || data.status === 'evaluating') {
               showEndedScreen();
               return;
             }
-            
-            // Initialize Audio
             await initAudio();
-            
-            // Start Polling
             pollInterval = setInterval(checkStatus, 1000);
             checkStatus();
-            
-            console.log('Session restored for participant:', savedParticipantId);
           } else {
-            // Participant was removed, clear session
             sessionStorage.removeItem('participantId');
             sessionStorage.removeItem('roomCode');
             sessionStorage.removeItem('participantName');
@@ -388,7 +583,6 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
-        
         mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
         mediaRecorder.onstop = uploadAudio;
       } catch (e) {
@@ -400,38 +594,30 @@
       try {
         const res = await fetch(`/api/rooms/${roomCode}/turn-status?participantId=${participantId}`);
         const data = await res.json();
-        
-        // Check if debate ended (results state)
+
         if (data.status === 'results' || data.status === 'evaluating') {
           clearInterval(pollInterval);
           showEndedScreen();
           return;
         }
-        
+
         const btn = document.getElementById('record-btn');
         const status = document.getElementById('status-text');
         const instruction = document.getElementById('instruction');
-        const statusDot = document.getElementById('status-dot');
 
         if (data.isMyTurn && !isRecording) {
           btn.disabled = false;
-          btn.style.opacity = '1';
           status.textContent = 'YOUR TURN';
-          status.style.color = 'var(--accent)';
-          statusDot.style.background = 'var(--accent)';
+          status.classList.add('active');
           instruction.textContent = 'Tap microphone to start';
-          
-          // Add click handler
           btn.onclick = () => {
             if (!isRecording) startRecording();
             else stopRecording();
           };
         } else if (!data.isMyTurn) {
           btn.disabled = true;
-          btn.style.opacity = '0.5';
           status.textContent = data.currentTurnName ? `${data.currentTurnName}'S TURN` : 'WAITING';
-          status.style.color = '#666';
-          statusDot.style.background = 'var(--success)';
+          status.classList.remove('active');
           instruction.textContent = 'Wait for your turn';
         }
       } catch (e) {
@@ -443,94 +629,66 @@
       document.getElementById('debate-interface').style.display = 'none';
       document.getElementById('ended-interface').classList.remove('hidden');
       document.getElementById('ended-interface').style.display = 'block';
-      
-      // Fetch full results
+      document.body.style.background = '#fff';
+      document.body.classList.remove('mobile-dark');
+
       try {
         const res = await fetch(`/api/rooms/${roomCode}/results`);
         const data = await res.json();
-        
-        if (data.error) {
-          console.error('Results error:', data.error);
-          return;
-        }
-        
-        // Display topic
-        document.getElementById('results-topic').textContent = data.topic || 'Debate';
-        
-        // Build results list
+        if (data.error) return;
+
+        document.getElementById('results-topic').textContent = data.topic || 'Discussion';
         const resultsList = document.getElementById('results-list');
         resultsList.innerHTML = '';
-        
-        const participantName = sessionStorage.getItem('participantName');
-        
-        data.results.forEach((p, index) => {
+
+        data.results.forEach((p) => {
           const isWinner = p.rank === 1;
           const isYou = p.id === participantId;
           const scores = p.averageScores || {};
-          
-          const card = document.createElement('div');
-          card.className = `participant-card ${isWinner ? 'winner' : ''} ${isYou ? 'you' : ''}`;
-          
-          // Build responses HTML
+
           let responsesHTML = '';
           if (p.responses && p.responses.length > 0) {
             responsesHTML = `
-              <div class="responses-section">
+              <div class="p-responses">
                 <h4>${p.responses.length} response(s)</h4>
-                ${p.responses.map((r, i) => `
-                  <div class="response-item">
-                    <div class="response-header">
-                      <span class="response-round">Round ${r.round}</span>
-                      <span class="response-score">Score: ${r.scores.finalScore}</span>
+                ${p.responses.map(r => `
+                  <div class="p-response">
+                    <div class="p-response-head">
+                      <span class="round">Round ${r.round}</span>
+                      <span class="score">${r.scores.finalScore}/10</span>
                     </div>
-                    <div class="response-insight">💡 ${r.scores.summary || r.scores.insight || 'No feedback'}</div>
-                    ${r.transcript ? `<div class="response-transcript">"${r.transcript}"</div>` : ''}
+                    <div class="insight">${r.scores.summary || r.scores.insight || 'No feedback'}</div>
+                    ${r.transcript ? `<div class="transcript">"${r.transcript}"</div>` : ''}
                   </div>
                 `).join('')}
               </div>
             `;
           }
-          
+
+          const card = document.createElement('div');
+          card.className = `p-card ${isWinner ? 'is-winner' : ''} ${isYou ? 'is-you' : ''}`;
           card.innerHTML = `
-            <div class="card-header">
-              <div class="rank-name">
-                <span class="rank">#${p.rank}</span>
-                <span class="name">
+            <div class="p-card-head">
+              <div style="display:flex;align-items:center;">
+                <span class="p-card-rank">#${p.rank}</span>
+                <span class="p-card-name">
                   ${p.name}
-                  ${isYou ? '<span class="you-badge">YOU</span>' : ''}
-                  ${isWinner ? '<span class="winner-badge">🏆 WINNER</span>' : ''}
+                  ${isYou ? '<span class="p-card-badge you">YOU</span>' : ''}
+                  ${isWinner ? '<span class="p-card-badge winner">WINNER</span>' : ''}
                 </span>
               </div>
-              <div class="score-box">
-                <span class="value">${p.averageScore || '--'}</span>
-              </div>
+              <span class="p-card-score">${p.averageScore || '—'}</span>
             </div>
-            
-            <div class="metrics-grid">
-              <div class="metric-item">
-                <span class="label">Logic</span>
-                <span class="value">${scores.logic || 0}/10</span>
-              </div>
-              <div class="metric-item">
-                <span class="label">Clarity</span>
-                <span class="value">${scores.clarity || 0}/10</span>
-              </div>
-              <div class="metric-item">
-                <span class="label">Relevance</span>
-                <span class="value">${scores.relevance || 0}/10</span>
-              </div>
-              <div class="metric-item">
-                <span class="label">Emotional Bias</span>
-                <span class="value">${scores.emotionalBias || 0}/10</span>
-              </div>
+            <div class="p-metrics">
+              <div class="p-metric"><span class="m-label">Logic</span><span class="m-value">${scores.logic || 0}</span></div>
+              <div class="p-metric"><span class="m-label">Clarity</span><span class="m-value">${scores.clarity || 0}</span></div>
+              <div class="p-metric"><span class="m-label">Relevance</span><span class="m-value">${scores.relevance || 0}</span></div>
+              <div class="p-metric"><span class="m-label">Bias</span><span class="m-value">${scores.emotionalBias || 0}</span></div>
             </div>
-            
             ${responsesHTML}
           `;
-          
           resultsList.appendChild(card);
         });
-        
       } catch (e) {
         console.error('Error fetching results:', e);
       }
@@ -543,12 +701,8 @@
       isRecording = true;
       audioChunks = [];
       mediaRecorder.start();
-      
-      const btn = document.getElementById('record-btn');
-      btn.classList.add('recording');
+      document.getElementById('record-btn').classList.add('recording');
       document.getElementById('instruction').textContent = 'Recording... Tap to stop';
-      
-      // Timer
       timeLeft = 30;
       updateTimer();
       timerInterval = setInterval(() => {
@@ -563,16 +717,13 @@
       isRecording = false;
       mediaRecorder.stop();
       clearInterval(timerInterval);
-      
-      const btn = document.getElementById('record-btn');
-      btn.classList.remove('recording');
-      btn.disabled = true;
+      document.getElementById('record-btn').classList.remove('recording');
+      document.getElementById('record-btn').disabled = true;
       document.getElementById('instruction').textContent = 'Uploading response...';
     }
 
     function updateTimer() {
-      const display = `00:${timeLeft.toString().padStart(2, '0')}`;
-      document.getElementById('timer').textContent = display;
+      document.getElementById('timer').textContent = `00:${timeLeft.toString().padStart(2, '0')}`;
     }
 
     async function uploadAudio() {
@@ -587,13 +738,10 @@
           body: formData
         });
         const data = await res.json();
-        
-        // Show immediate feedback
         lastScore = data.scores.finalScore;
         document.getElementById('latest-score').textContent = data.scores.finalScore;
         document.getElementById('latest-insight').textContent = data.scores.insight;
         document.getElementById('instruction').textContent = 'Response submitted!';
-
       } catch (e) {
         console.error(e);
         alert('Upload failed');
