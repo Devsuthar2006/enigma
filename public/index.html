@@ -476,5 +476,16 @@
     <p>&copy; 2026 DebAItor. Built for structured feedback.</p>
     <a href="https://github.com/Devsuthar2006/enigma" target="_blank">GitHub</a>
   </footer>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('isLoggedIn') === 'true' || sessionStorage.getItem('isGuest') === 'true') {
+        const navCta = document.querySelector('.nav-cta');
+        if (navCta) {
+          navCta.textContent = 'Dashboard';
+          navCta.href = '/host.html';
+        }
+      }
+    });
+  </script>
 </body>
 </html>
