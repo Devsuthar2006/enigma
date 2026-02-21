@@ -325,6 +325,21 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
   <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAdKL2u5KA1ujc1Nv3AYQnC9iGXJ2a0IBA",
+      authDomain: "debailtor.firebaseapp.com",
+      projectId: "debailtor",
+      storageBucket: "debailtor.firebasestorage.app",
+      messagingSenderId: "147706259933",
+      appId: "1:147706259933:web:a52b3ee6fa7820c0ce6e34",
+      measurementId: "G-6Z54Z6LZ86"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
     // DOM elements
     const loadingState = document.getElementById('loading-state');
     const signinState = document.getElementById('signin-state');
@@ -341,51 +356,31 @@
     // Start with loading
     showState('loading');
 
-    let auth = null;
+    // Listen for auth state changes
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        document.getElementById('user-avatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'U') + '&background=111827&color=fff&size=112';
+        document.getElementById('user-name').textContent = user.displayName || 'User';
+        document.getElementById('user-email').textContent = user.email;
 
-    // Initialize Firebase securely
-    async function initFirebaseApp() {
-      try {
-        const response = await fetch('/api/firebase-config');
-        const firebaseConfig = await response.json();
-        
-        firebase.initializeApp(firebaseConfig);
-        auth = firebase.auth();
+        // Save to sessionStorage for other pages
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userName', user.displayName || 'User');
+        sessionStorage.setItem('userEmail', user.email);
+        sessionStorage.setItem('userPhoto', user.photoURL || '');
+        sessionStorage.setItem('userUid', user.uid);
 
-        // Listen for auth state changes
-        auth.onAuthStateChanged((user) => {
-          if (user) {
-            // User is signed in
-            document.getElementById('user-avatar').src = user.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.displayName || 'U') + '&background=111827&color=fff&size=112';
-            document.getElementById('user-name').textContent = user.displayName || 'User';
-            document.getElementById('user-email').textContent = user.email;
-
-            // Save to sessionStorage for other pages
-            sessionStorage.setItem('isLoggedIn', 'true');
-            sessionStorage.setItem('userName', user.displayName || 'User');
-            sessionStorage.setItem('userEmail', user.email);
-            sessionStorage.setItem('userPhoto', user.photoURL || '');
-            sessionStorage.setItem('userUid', user.uid);
-
-            showState('user');
-          } else {
-            // Check guest
-            if (sessionStorage.getItem('isGuest') === 'true') {
-              window.location.href = '/host.html';
-              return;
-            }
-            showState('signin');
-          }
-        });
-      } catch (err) {
-        console.error('Failed to connect to Firebase:', err);
-        errorEl.textContent = 'Server configuration error.';
-        errorEl.style.display = 'block';
+        showState('user');
+      } else {
+        // Check guest
+        if (sessionStorage.getItem('isGuest') === 'true') {
+          window.location.href = '/host.html';
+          return;
+        }
+        showState('signin');
       }
-    }
-
-    // Run on load
-    initFirebaseApp();
+    });
 
     // Google Sign-In
     async function signInWithGoogle() {
