@@ -36,18 +36,6 @@
       "dest": "/public/styles.css"
     },
     {
-      "src": "/interview/session",
-      "dest": "server.js"
-    },
-    {
-      "src": "/interview/report",
-      "dest": "server.js"
-    },
-    {
-      "src": "/interview",
-      "dest": "server.js"
-    },
-    {
       "src": "/(.*)",
       "dest": "server.js"
     }
