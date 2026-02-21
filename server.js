@@ -1943,6 +1943,9 @@ app.post('/api/interview/tts', async (req, res) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/host', (req, res) => res.sendFile(path.join(__dirname, 'public', 'host.html')));
 app.get('/join', (req, res) => res.sendFile(path.join(__dirname, 'public', 'join.html')));
+app.get('/interview', (req, res) => res.sendFile(path.join(__dirname, 'public', 'interview', 'index.html')));
+app.get('/interview/session', (req, res) => res.sendFile(path.join(__dirname, 'public', 'interview', 'session', 'index.html')));
+app.get('/interview/report', (req, res) => res.sendFile(path.join(__dirname, 'public', 'interview', 'report', 'index.html')));
 
 // Start server
 if (process.env.VERCEL !== '1') {
