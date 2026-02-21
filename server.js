@@ -305,6 +305,22 @@ app.post('/api/rooms', async (req, res) => {
 });
 
 /**
+ * GET Firebase Config
+ * Serves the public Firebase client config without hardcoding API keys in frontend files.
+ */
+app.get('/api/firebase-config', (req, res) => {
+  res.json({
+    apiKey: process.env.FIREBASE_CLIENT_API_KEY,
+    authDomain: "debailtor.firebaseapp.com",
+    projectId: "debailtor",
+    storageBucket: "debailtor.firebasestorage.app",
+    messagingSenderId: "147706259933",
+    appId: "1:147706259933:web:a52b3ee6fa7820c0ce6e34",
+    measurementId: "G-6Z54Z6LZ86"
+  });
+});
+
+/**
  * Helper: Verify host authorization
  */
 function verifyHost(room, hostId) {
