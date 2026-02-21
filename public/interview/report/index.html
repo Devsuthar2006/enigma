@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interview Report — DebAItor</title>
+  <meta name="description" content="Your AI interview performance report with detailed scoring and feedback.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface-2: #1a1a25;
+      --border: rgba(255,255,255,0.06);
+      --border-light: rgba(255,255,255,0.1);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #475569;
+      --accent: #0ea5e9;
+      --accent-glow: rgba(14, 165, 233, 0.15);
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--font);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Loading State ── */
+    .loading-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 1.5rem;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ── Report Container ── */
+    .report {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .report.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── Header ── */
+    .report-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .report-badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      background: var(--accent-glow);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      border: 1px solid rgba(14,165,233,0.2);
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+    .report-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+    }
+    .report-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .report-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    /* ── Overall Score Ring ── */
+    .overall-section {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .score-ring {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0 auto 1rem;
+    }
+    .score-ring svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    .score-ring .bg-circle {
+      fill: none;
+      stroke: var(--surface-2);
+      stroke-width: 8;
+    }
+    .score-ring .fg-circle {
+      fill: none;
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1.5s ease-out, stroke 0.3s;
+    }
+    .score-ring .score-value {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .score-ring .score-label {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+    .overall-verdict {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    /* ── Score Breakdown ── */
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+    .scores-grid {
+      display: grid;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .score-row-label {
+      flex: 0 0 140px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .score-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--surface-2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .score-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 1.2s ease-out;
+      width: 0%;
+    }
+    .score-row-value {
+      flex: 0 0 36px;
+      text-align: right;
+      font-size: 0.9rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Feedback Sections ── */
+    .feedback-section {
+      margin-bottom: 2rem;
+    }
+    .feedback-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .feedback-list {
+      list-style: none;
+    }
+    .feedback-list li {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+    .feedback-list li:last-child { border-bottom: none; }
+    .feedback-list li .icon {
+      flex-shrink: 0;
+      font-size: 0.75rem;
+      margin-top: 0.2rem;
+    }
+    .strengths .icon { color: var(--green); }
+    .improvements .icon { color: var(--yellow); }
+
+    .overall-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.7;
+      padding: 1rem 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      border-left: 3px solid var(--accent);
+    }
+
+    /* ── Transcript Toggle ── */
+    .transcript-toggle {
+      width: 100%;
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .transcript-toggle:hover { border-color: var(--border-light); }
+    .transcript-toggle .arrow { transition: transform 0.3s; }
+    .transcript-toggle.open .arrow { transform: rotate(180deg); }
+    .transcript-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .transcript-content.visible { display: block; }
+    .qa-pair {
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .qa-pair:last-child { border-bottom: none; }
+    .qa-question {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.4rem;
+    }
+    .qa-answer {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ── Actions ── */
+    .actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 2.5rem;
+      justify-content: center;
+    }
+    .btn-primary {
+      padding: 0.75rem 1.5rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: filter 0.15s;
+    }
+    .btn-primary:hover { filter: brightness(1.15); }
+    .btn-secondary {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--border-light); color: var(--text-primary); }
+
+    /* ── Error ── */
+    .error-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 1rem;
+      text-align: center;
+      padding: 2rem;
+    }
+    .error-screen.visible { display: flex; }
+    .error-screen .error-icon { font-size: 2.5rem; }
+    .error-screen .error-msg {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 360px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .report { padding: 1.5rem 1rem 3rem; }
+      .report-title { font-size: 1.4rem; }
+      .score-row-label { flex: 0 0 110px; font-size: 0.78rem; }
+      .actions { flex-direction: column; }
+      .actions button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading -->
+  <div class="loading-screen" id="loading-screen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Analyzing your interview performance...</div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-screen" id="error-screen">
+    <div class="error-icon">⚠️</div>
+    <div class="error-msg" id="error-msg">Something went wrong generating your report.</div>
+    <button class="btn-secondary" onclick="window.location.href='/interview'">Back to Interview Setup</button>
+  </div>
+
+  <!-- Report -->
+  <div class="report" id="report">
+    <!-- Header -->
+    <div class="report-header">
+      <div class="report-badge">Interview Report</div>
+      <h1 class="report-title" id="report-title">Performance Report</h1>
+      <div class="report-meta" id="report-meta"></div>
+    </div>
+
+    <!-- Overall Score -->
+    <div class="overall-section">
+      <div class="score-ring" id="score-ring">
+        <svg viewBox="0 0 140 140">
+          <circle class="bg-circle" cx="70" cy="70" r="58"></circle>
+          <circle class="fg-circle" id="fg-circle" cx="70" cy="70" r="58"
+                  stroke-dasharray="364.42" stroke-dashoffset="364.42"></circle>
+        </svg>
+        <div class="score-value" id="overall-score">—</div>
+        <div class="score-label">Overall</div>
+      </div>
+      <div class="overall-verdict" id="overall-verdict"></div>
+    </div>
+
+    <!-- Score Breakdown -->
+    <div class="feedback-section">
+      <div class="section-title">Score Breakdown</div>
+      <div class="scores-grid" id="scores-grid"></div>
+    </div>
+
+    <!-- Strengths -->
+    <div class="feedback-section">
+      <div class="section-title">✦ Strengths</div>
+      <div class="feedback-card strengths">
+        <ul class="feedback-list" id="strengths-list"></ul>
+      </div>
+    </div>
+
+    <!-- Improvements -->
+    <div class="feedback-section">
+      <div class="section-title">△ Areas for Improvement</div>
+      <div class="feedback-card improvements">
+        <ul class="feedback-list" id="improvements-list"></ul>
+      </div>
+    </div>
+
+    <!-- Overall Feedback -->
+    <div class="feedback-section">
+      <div class="section-title">Overall Feedback</div>
+      <div class="overall-text" id="overall-feedback"></div>
+    </div>
+
+    <!-- Transcript -->
+    <div class="feedback-section">
+      <button class="transcript-toggle" id="transcript-toggle" onclick="toggleTranscript()">
+        <span>View Full Transcript</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="transcript-content" id="transcript-content"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="btn-primary" onclick="window.location.href='/interview'">Start New Interview</button>
+      <button class="btn-secondary" onclick="window.location.href='/'">Back to Home</button>
+    </div>
+  </div>
+
+  <script>
+    const sessionId = sessionStorage.getItem('interviewSessionId');
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!sessionId) {
+        showError('No session found. Please start an interview first.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/interview/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          showError(err.error || 'Failed to generate report.');
+          return;
+        }
+
+        const data = await res.json();
+        renderReport(data);
+
+      } catch (err) {
+        console.error('Report fetch error:', err);
+        showError('Network error. Please try again.');
+      }
+    });
+
+
+    function renderReport(data) {
+      const { meta, evaluation, transcript } = data;
+
+      // Hide loading, show report
+      document.getElementById('loading-screen').style.display = 'none';
+
+      // Header
+      document.getElementById('report-title').textContent = `${meta.role} Interview`;
+      const mins = Math.floor(meta.duration / 60);
+      const secs = meta.duration % 60;
+      document.getElementById('report-meta').innerHTML = `
+        <span>📋 ${meta.focus.charAt(0).toUpperCase() + meta.focus.slice(1)}</span>
+        <span>📊 ${meta.difficulty.charAt(0).toUpperCase() + meta.difficulty.slice(1)}</span>
+        <span>❓ ${meta.questionCount} questions</span>
+        <span>⏱ ${mins}m ${secs}s</span>
+      `;
+
+      // Overall Score
+      const overall = evaluation.scores.overall;
+      document.getElementById('overall-score').textContent = overall.toFixed(1);
+      document.getElementById('overall-verdict').textContent = getVerdict(overall);
+
+      // Animate ring
+      const circumference = 2 * Math.PI * 58; // r=58
+      const offset = circumference - (overall / 10) * circumference;
+      const circle = document.getElementById('fg-circle');
+      circle.style.stroke = getScoreColor(overall);
+      setTimeout(() => {
+        circle.style.strokeDashoffset = offset;
+      }, 300);
+
+      // Score bars
+      const scoreLabels = {
+        clarity: 'Clarity',
+        relevance: 'Relevance',
+        logical_reasoning: 'Logical Reasoning',
+        confidence: 'Confidence',
+        depth: 'Depth of Knowledge'
+      };
+
+      const grid = document.getElementById('scores-grid');
+      for (const [key, label] of Object.entries(scoreLabels)) {
+        const val = evaluation.scores[key] || 0;
+        const row = document.createElement('div');
+        row.className = 'score-row';
+        row.innerHTML = `
+          <div class="score-row-label">${label}</div>
+          <div class="score-bar-wrap">
+            <div class="score-bar" id="bar-${key}" style="background: ${getScoreColor(val)}"></div>
+          </div>
+          <div class="score-row-value" style="color: ${getScoreColor(val)}">${val}</div>
+        `;
+        grid.appendChild(row);
+      }
+
+      // Animate bars after render
+      setTimeout(() => {
+        for (const key of Object.keys(scoreLabels)) {
+          const val = evaluation.scores[key] || 0;
+          document.getElementById(`bar-${key}`).style.width = `${val * 10}%`;
+        }
+      }, 400);
+
+      // Strengths
+      const sList = document.getElementById('strengths-list');
+      evaluation.strengths.forEach(s => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="icon">✓</span><span>${s}</span>`;
+        sList.appendChild(li);
+      });
+
+      // Improvements
+      const iList = document.getElementById('improvements-list');
+      evaluation.improvement_areas.forEach(a => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="icon">→</span><span>${a}</span>`;
+        iList.appendChild(li);
+      });
+
+      // Overall feedback
+      document.getElementById('overall-feedback').textContent = evaluation.overall_feedback;
+
+      // Transcript
+      const tContent = document.getElementById('transcript-content');
+      if (transcript && transcript.length > 0) {
+        transcript.forEach(p => {
+          const div = document.createElement('div');
+          div.className = 'qa-pair';
+          div.innerHTML = `
+            <div class="qa-question">Q${p.number}: ${p.question}</div>
+            <div class="qa-answer">${p.answer}</div>
+          `;
+          tContent.appendChild(div);
+        });
+      }
+
+      // Show report with animation
+      const report = document.getElementById('report');
+      report.style.display = 'block';
+      setTimeout(() => report.classList.add('visible'), 50);
+    }
+
+
+    function getScoreColor(score) {
+      if (score >= 8) return '#22c55e';
+      if (score >= 6) return '#0ea5e9';
+      if (score >= 4) return '#f59e0b';
+      return '#ef4444';
+    }
+
+    function getVerdict(score) {
+      if (score >= 9) return 'Outstanding Performance';
+      if (score >= 8) return 'Excellent — Highly Competent';
+      if (score >= 7) return 'Strong Performance';
+      if (score >= 6) return 'Competent — Room to Grow';
+      if (score >= 5) return 'Developing — Needs Improvement';
+      if (score >= 4) return 'Below Expectations';
+      return 'Needs Significant Work';
+    }
+
+    function toggleTranscript() {
+      const btn = document.getElementById('transcript-toggle');
+      const content = document.getElementById('transcript-content');
+      btn.classList.toggle('open');
+      content.classList.toggle('visible');
+      btn.querySelector('span:first-child').textContent =
+        content.classList.contains('visible') ? 'Hide Transcript' : 'View Full Transcript';
+    }
+
+    function showError(msg) {
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('error-msg').textContent = msg;
+      document.getElementById('error-screen').classList.add('visible');
+    }
+  </script>
+</body>
+</html>

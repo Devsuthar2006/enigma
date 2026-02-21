@@ -107,6 +107,44 @@
       display: inline-block;
     }
     .hero-actions .btn-outline:hover { background: #f9fafb; border-color: #9ca3af; }
+    
+    .hero-interview-wrapper {
+      margin-top: 2.5rem;
+      padding-top: 2rem;
+      border-top: 1px dashed #d1d5db;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .hero-interview-action {
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #fff;
+      padding: 1.15rem 2.75rem;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-decoration: none;
+      border: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .hero-interview-action:hover {
+      filter: brightness(1.1);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(2, 132, 199, 0.3), 0 4px 6px -2px rgba(2, 132, 199, 0.15);
+    }
+    .hero-interview-subtitle {
+      font-size: 0.9rem;
+      color: #6b7280;
+      font-weight: 500;
+    }
 
     /* Divider */
     .section-divider {
@@ -314,6 +352,10 @@
     <div class="hero-actions">
       <a href="host.html" class="btn-dark">Host a session</a>
       <a href="join.html" class="btn-outline">Join a room</a>
+    </div>
+    <div class="hero-interview-wrapper">
+      <a href="/interview" class="hero-interview-action">🚀 Start AI Interview</a>
+      <span class="hero-interview-subtitle">Practice real interview scenarios with AI-powered feedback</span>
     </div>
   </section>
 

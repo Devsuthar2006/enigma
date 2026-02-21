@@ -333,8 +333,8 @@ app.get('/api/rooms/:code', async (req, res) => {
     roomCode,
     topic: room.topic,
     mode: room.mode || 'debate',
-    modeLabel: MODE_WEIGHTS[room.mode || 'debate'].label,
-    modeWeights: MODE_WEIGHTS[room.mode || 'debate'],
+    modeLabel: (MODE_WEIGHTS[room.mode || 'debate'] || MODE_WEIGHTS['debate']).label,
+    modeWeights: MODE_WEIGHTS[room.mode || 'debate'] || MODE_WEIGHTS['debate'],
     timeLimit: room.timeLimit || 30,
     status: room.status,
     locked: room.locked,
@@ -1037,8 +1037,8 @@ app.get('/api/rooms/:code/report', async (req, res) => {
       roomCode,
       topic: room.topic,
       mode: room.mode || 'debate',
-      modeLabel: MODE_WEIGHTS[room.mode || 'debate'].label,
-      modeWeights: MODE_WEIGHTS[room.mode || 'debate'],
+      modeLabel: (MODE_WEIGHTS[room.mode || 'debate'] || MODE_WEIGHTS['debate']).label,
+      modeWeights: MODE_WEIGHTS[room.mode || 'debate'] || MODE_WEIGHTS['debate'],
       totalRounds: room.currentRound,
       participants: results
     });
@@ -1062,7 +1062,7 @@ app.get('/api/rooms/:code/report', async (req, res) => {
       doc.fontSize(12).text(`Generated: ${reportDate}`);
       doc.text(`Room Code: ${roomCode}`);
       doc.text(`Topic: ${room.topic}`);
-      doc.text(`Mode: ${MODE_WEIGHTS[room.mode || 'debate'].label}`);
+      doc.text(`Mode: ${(MODE_WEIGHTS[room.mode || 'debate'] || MODE_WEIGHTS['debate']).label}`);
       doc.text(`Total Rounds: ${room.currentRound}`);
       doc.text(`Participants: ${results.length}`);
       doc.moveDown();
@@ -1502,6 +1502,442 @@ function getMockEvaluation(mode = 'debate') {
   const finalScore = calculateFinalScore({ logic, clarity, relevance, emotionalBias }, mode);
   return { logic, clarity, relevance, emotionalBias, summary, factCheck, roast, finalScore };
 }
+
+// ============ AI INTERVIEW ENGINE ============
+const interviewEngine = require('./prompts/engine');
+
+/**
+ * POST /api/interview/start
+ * Creates an interview session and streams the first AI question.
+ * Body: { role, focus, difficulty }
+ */
+app.post('/api/interview/start', async (req, res) => {
+  const { role, focus, difficulty } = req.body;
+
+  if (!role || !role.trim()) {
+    return res.status(400).json({ error: 'Role is required' });
+  }
+
+  const sessionId = uuidv4();
+  const session = interviewEngine.createSession(sessionId, {
+    role: role.trim(),
+    focus: focus || 'mixed',
+    difficulty: difficulty || 'medium'
+  });
+
+  if (USE_MOCK_AI) {
+    const mockQuestion = `Welcome! I'll be your interviewer for the ${role} role today. Tell me a little about yourself and what draws you to this position.`;
+    interviewEngine.addAssistantMessage(session, mockQuestion);
+    return res.json({
+      sessionId,
+      question: mockQuestion,
+      questionNumber: session.questionCount,
+      status: session.status
+    });
+  }
+
+  // Stream the first question from OpenAI
+  try {
+    const messages = interviewEngine.buildMessagePayload(session);
+    messages.push({ role: 'user', content: 'Please begin the interview with your first question.' });
+
+    // Set up SSE headers for streaming
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send sessionId immediately
+    res.write(`data: ${JSON.stringify({ type: 'session', sessionId })}\n\n`);
+
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      stream: true,
+      max_tokens: 200,
+      temperature: 0.7
+    });
+
+    let fullQuestion = '';
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        fullQuestion += content;
+        res.write(`data: ${JSON.stringify({ type: 'token', content })}\n\n`);
+      }
+    }
+
+    // Save the full question to session
+    interviewEngine.addAssistantMessage(session, fullQuestion);
+
+    // Send completion event
+    res.write(`data: ${JSON.stringify({
+      type: 'done',
+      questionNumber: session.questionCount,
+      status: session.status
+    })}\n\n`);
+
+    res.end();
+  } catch (err) {
+    console.error('Interview start error:', err);
+    res.write(`data: ${JSON.stringify({ type: 'error', message: 'Failed to generate question' })}\n\n`);
+    res.end();
+  }
+});
+
+
+/**
+ * POST /api/interview/respond
+ * Accepts audio file, transcribes it, then streams the next AI question.
+ * Form data: audio file + sessionId field
+ */
+app.post('/api/interview/respond', upload.single('audio'), async (req, res) => {
+  const { sessionId } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'sessionId is required' });
+  }
+
+  const session = interviewEngine.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Interview session not found' });
+  }
+
+  if (session.status === 'complete') {
+    return res.json({ status: 'complete', message: 'Interview already complete' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'Audio file is required' });
+  }
+
+  try {
+    let transcript;
+
+    if (USE_MOCK_AI) {
+      transcript = 'I have experience in software engineering and am passionate about building scalable systems.';
+    } else {
+      // Transcribe with Whisper
+      let audioPath = req.file.path;
+      try {
+        const { execSync } = require('child_process');
+        const enhancedPath = req.file.path + '_enhanced.webm';
+        execSync(`ffmpeg -i "${req.file.path}" -af "highpass=f=80,lowpass=f=8000,anlmdn=s=7,acompressor=threshold=-20dB:ratio=4:attack=5:release=50" -y "${enhancedPath}" 2>/dev/null`, { timeout: 10000 });
+        audioPath = enhancedPath;
+      } catch (e) { /* FFmpeg not available */ }
+
+      const audioFile = fs.createReadStream(audioPath);
+      const transcription = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: 'whisper-1'
+      });
+
+      if (audioPath !== req.file.path) fs.unlink(audioPath, () => {});
+      transcript = transcription.text;
+    }
+
+    // Clean up audio file
+    fs.unlink(req.file.path, () => {});
+
+    // Add user's answer to session
+    interviewEngine.addUserMessage(session, transcript);
+
+    // Check if summarization is needed
+    if (interviewEngine.shouldSummarize(session) && !USE_MOCK_AI) {
+      try {
+        const sumPayload = interviewEngine.buildSummarizationPayload(session);
+        if (sumPayload) {
+          const sumResponse = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: 'You are a concise summarizer. Respond with only the summary.' },
+              sumPayload
+            ],
+            max_tokens: 150,
+            temperature: 0.3
+          });
+          const summary = sumResponse.choices[0]?.message?.content || '';
+          if (summary) {
+            interviewEngine.applySummarization(session, summary);
+          }
+        }
+      } catch (sumErr) {
+        console.warn('Summarization failed (non-critical):', sumErr.message);
+      }
+    }
+
+    // Check if we've hit the question limit
+    if (session.questionCount >= interviewEngine.MAX_QUESTIONS) {
+      session.status = 'complete';
+      return res.json({
+        transcript,
+        status: 'complete',
+        message: 'Interview complete. Maximum questions reached.',
+        questionNumber: session.questionCount
+      });
+    }
+
+    if (USE_MOCK_AI) {
+      const mockQuestions = [
+        "Can you walk me through a challenging project you worked on recently?",
+        "How do you approach debugging a complex system issue?",
+        "Tell me about a time you had to learn something new under a tight deadline.",
+        "What's your approach to code reviews and giving constructive feedback?",
+        "How do you prioritize tasks when working on multiple features?",
+        "Describe a situation where you disagreed with a team decision. How did you handle it?",
+        "Where do you see your career heading in the next few years?",
+        "Is there anything you'd like to ask me or add before we wrap up?"
+      ];
+      const mockQ = mockQuestions[Math.min(session.questionCount, mockQuestions.length - 1)];
+      interviewEngine.addAssistantMessage(session, mockQ);
+      return res.json({
+        transcript,
+        question: mockQ,
+        questionNumber: session.questionCount,
+        status: session.status
+      });
+    }
+
+    // Stream the next question
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send transcript first
+    res.write(`data: ${JSON.stringify({ type: 'transcript', content: transcript })}\n\n`);
+
+    const messages = interviewEngine.buildMessagePayload(session);
+
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      stream: true,
+      max_tokens: 200,
+      temperature: 0.7
+    });
+
+    let fullQuestion = '';
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        fullQuestion += content;
+        res.write(`data: ${JSON.stringify({ type: 'token', content })}\n\n`);
+      }
+    }
+
+    interviewEngine.addAssistantMessage(session, fullQuestion);
+
+    res.write(`data: ${JSON.stringify({
+      type: 'done',
+      questionNumber: session.questionCount,
+      status: session.status
+    })}\n\n`);
+
+    res.end();
+
+  } catch (err) {
+    console.error('Interview respond error:', err);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Failed to process response' });
+    }
+    res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+    res.end();
+  }
+});
+
+
+/**
+ * GET /api/interview/status/:sessionId
+ * Returns session status without streaming.
+ */
+app.get('/api/interview/status/:sessionId', (req, res) => {
+  const session = interviewEngine.getSession(req.params.sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+
+  res.json({
+    sessionId: session.id,
+    role: session.role,
+    focus: session.focus,
+    difficulty: session.difficulty,
+    questionCount: session.questionCount,
+    maxQuestions: interviewEngine.MAX_QUESTIONS,
+    status: session.status,
+    hasSummary: !!session.conversationSummary
+  });
+});
+
+
+// ============ INTERVIEW REPORT EVALUATION ============
+const { buildEvaluationPrompt, parseEvaluationResponse } = require('./prompts/evaluator');
+const { formatTranscript } = require('./prompts/transcript');
+
+/**
+ * POST /api/interview/report
+ * Generates a full evaluation report for a completed interview.
+ * Body: { sessionId }
+ */
+app.post('/api/interview/report', async (req, res) => {
+  const { sessionId } = req.body;
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'sessionId is required' });
+  }
+
+  const session = interviewEngine.getSession(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Interview session not found' });
+  }
+
+  const { pairs, questionCount } = formatTranscript(session.fullTranscript);
+
+  if (questionCount === 0) {
+    return res.status(400).json({ error: 'No interview exchanges to evaluate' });
+  }
+
+  const meta = {
+    role: session.role,
+    focus: session.focus,
+    difficulty: session.difficulty,
+    questionCount,
+    duration: Math.round((Date.now() - session.createdAt) / 1000)
+  };
+
+  if (USE_MOCK_AI) {
+    return res.json({
+      meta,
+      transcript: pairs,
+      evaluation: {
+        scores: {
+          clarity: 7,
+          relevance: 8,
+          logical_reasoning: 6,
+          confidence: 7,
+          depth: 5,
+          overall: 6.6
+        },
+        strengths: [
+          'Provided clear and structured explanations',
+          'Stayed on topic and addressed the questions directly',
+          'Demonstrated awareness of industry best practices'
+        ],
+        improvement_areas: [
+          'Answers could include more specific technical details',
+          'Consider providing concrete metrics or outcomes from past work',
+          'Could ask clarifying questions before answering'
+        ],
+        overall_feedback: 'The candidate demonstrated a solid foundation and communicated clearly throughout the interview. However, several answers remained at a surface level and would benefit from deeper technical specifics and real-world examples with measurable impact.'
+      }
+    });
+  }
+
+  try {
+    const messages = buildEvaluationPrompt(session);
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      max_tokens: 800,
+      temperature: 0.4
+    });
+
+    const raw = completion.choices[0]?.message?.content || '';
+    const evaluation = parseEvaluationResponse(raw);
+
+    if (!evaluation) {
+      console.error('Failed to parse evaluation:', raw.substring(0, 300));
+      return res.status(500).json({ error: 'Failed to parse AI evaluation' });
+    }
+
+    res.json({ meta, transcript: pairs, evaluation });
+
+  } catch (err) {
+    console.error('Report generation error:', err.message);
+    res.status(500).json({ error: 'Failed to generate report' });
+  }
+});
+
+
+// ============ TEXT-TO-SPEECH (OpenAI TTS primary, ElevenLabs fallback) ============
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+
+/**
+ * POST /api/interview/tts
+ * Converts text to speech. Tries OpenAI TTS first, falls back to ElevenLabs.
+ * Body: { text }
+ * Returns: audio/mpeg buffer
+ */
+app.post('/api/interview/tts', async (req, res) => {
+  const { text } = req.body;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Text is required' });
+  }
+
+  // Try OpenAI TTS first (uses existing API key)
+  if (!USE_MOCK_AI) {
+    try {
+      const mp3Response = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: 'nova',
+        input: text.trim(),
+        response_format: 'mp3'
+      });
+
+      const buffer = Buffer.from(await mp3Response.arrayBuffer());
+
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.send(buffer);
+
+    } catch (err) {
+      console.warn('OpenAI TTS failed:', err.message);
+      // Fall through to ElevenLabs
+    }
+  }
+
+  // Fallback: ElevenLabs
+  if (ELEVENLABS_API_KEY) {
+    try {
+      const ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'audio/mpeg',
+          'Content-Type': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          model_id: 'eleven_flash_v2_5',
+          voice_settings: {
+            stability: 0.4,
+            similarity_boost: 0.8,
+            style: 0.15,
+            use_speaker_boost: true
+          }
+        })
+      });
+
+      if (ttsResponse.ok) {
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.setHeader('Cache-Control', 'no-cache');
+        const arrayBuffer = await ttsResponse.arrayBuffer();
+        return res.send(Buffer.from(arrayBuffer));
+      } else {
+        const errBody = await ttsResponse.text();
+        console.warn('ElevenLabs error:', ttsResponse.status, errBody.substring(0, 200));
+      }
+    } catch (err) {
+      console.warn('ElevenLabs TTS failed:', err.message);
+    }
+  }
+
+  return res.status(502).json({ error: 'TTS unavailable' });
+});
+
 
 // Serve pages
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
