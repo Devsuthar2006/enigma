@@ -419,9 +419,52 @@
       .mic-btn { width: 72px; height: 72px; }
       .mic-btn svg { width: 24px; height: 24px; }
     }
+
+    /* Tap to begin overlay */
+    .start-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,15,0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      cursor: pointer;
+      gap: 1rem;
+      transition: opacity 0.4s;
+    }
+    .start-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .start-overlay .start-icon {
+      font-size: 3rem;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    .start-overlay .start-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .start-overlay .start-sub {
+      font-size: 0.75rem;
+      color: #475569;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50% { transform: scale(1.1); opacity: 1; }
+    }
   </style>
 </head>
 <body>
+
+  <!-- Tap to begin overlay -->
+  <div class="start-overlay" id="start-overlay">
+    <div class="start-icon">🎤</div>
+    <div class="start-text">Tap to Begin Interview</div>
+    <div class="start-sub">Enables voice playback</div>
+  </div>
 
   <!-- ═══ Top Bar ═══ -->
   <header class="topbar">
@@ -531,8 +574,23 @@
         if (e.key === 'Enter') submitTextAnswer();
       });
 
-      // Start interview session with the backend
-      await startInterviewSession();
+      // Wait for user tap to unlock audio, then start
+      const overlay = document.getElementById('start-overlay');
+      overlay.addEventListener('click', async () => {
+        // Unlock audio autoplay
+        try {
+          ttsAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+          await ttsAudio.play();
+          ttsAudio.pause();
+          ttsAudio.currentTime = 0;
+          ttsAudio.src = '';
+          audioUnlocked = true;
+        } catch(e) {}
+
+        overlay.classList.add('hidden');
+        setTimeout(() => overlay.remove(), 500);
+        await startInterviewSession();
+      }, { once: true });
     });
 
 
