@@ -57,6 +57,7 @@ DebAItor is a real-time, AI-powered platform that objectively evaluates debate a
 ## Future Scope
 *   **Multi-Language Support**: Breaking language barriers in debates and interviews.
 *   **Team Mode**: Supporting 2v2 or 3v3 structured debates.
+*   **Event Integration**: Tailoring the platform for large-scale use in conference halls and formal debate competitions.
 
 ## Hackathon Note
 Built as a high-impact submission for the hackathon.
